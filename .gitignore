@@ -35,3 +35,25 @@ src/main/java/soloMapling/Documents/Future Systems and Ideas.md
 src/main/java/soloMapling/Documents/Continuation Roadmap.md
 /src/main/java/soloMapling/Documents/3 Dev Diary 2 - Older stuff
 /cache
+
+# Quiet Grove local releases, private evidence and generated trainer files
+/release/
+/tools/solo-trainer/bin/
+/tools/solo-trainer/candidate*/
+/tools/world-statistics/checkpoint-*/
+/tools/source-integrity-recovery-*/
+**/__pycache__/
+*.pyc
+*.dmp
+*.jfr
+*.log
+*.tgz
+*.tar.gz
+*.zip
+*.exe
+*.dll
+**/backup*/
+**/installation-receipt.json
+.env
+.env.*
+!.env.example
