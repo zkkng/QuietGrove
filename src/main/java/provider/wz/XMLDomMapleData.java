@@ -79,8 +79,15 @@ public class XMLDomMapleData implements Data {
             boolean foundChild = false;
             for (int i = 0; i < childNodes.getLength(); i++) {
                 Node childNode = childNodes.item(i);
+                // WZ XML occasionally contains structural elements without a name
+                // attribute. Treat those as non-matches instead of killing the
+                // caller (for example, an FM bot resolving an item's display name).
+                Node nameAttribute = childNode.getAttributes() == null
+                        ? null
+                        : childNode.getAttributes().getNamedItem("name");
                 if (childNode.getNodeType() == Node.ELEMENT_NODE
-                        && childNode.getAttributes().getNamedItem("name").getNodeValue().equals(s)) {
+                        && nameAttribute != null
+                        && nameAttribute.getNodeValue().equals(s)) {
                     myNode = childNode;
                     foundChild = true;
                     break;

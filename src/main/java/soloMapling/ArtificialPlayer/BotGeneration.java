@@ -3,6 +3,7 @@ package soloMapling.ArtificialPlayer;
 import client.Character;
 import client.Client;
 import client.Job;
+import net.server.Server;
 import server.maps.MapleMap;
 import soloMapling.ArtificialPlayer.BotAttackSystem.BotBuffDriver;
 import soloMapling.ArtificialPlayer.BotBuffRequestSystem.BotBuffRequestHandler;
@@ -23,9 +24,7 @@ import static soloMapling.DebugUtilities.debugprint;
 import static soloMapling.FreeMarket.FMShopDescGen.getRandomCharacterIGN;
 import static soloMapling.server.ExecutorServiceManager.runAsync;
 import static soloMapling.server.SoloMaplingUtilities.getChr;
-import static soloMapling.server.SoloMaplingUtilities.channel;
 import static soloMapling.server.SoloMaplingUtilities.getMapleMapById;
-import static soloMapling.server.SoloMaplingUtilities.world;
 
 public class BotGeneration {
 
@@ -81,32 +80,52 @@ public class BotGeneration {
 
     // forcedJobId > 0 pins the exact job (GM 'trainhere' test spawn); 0 = a random job for the class.
     public static int createBot(Point pos, MapleMap map, int baseClass, int minLevel, int maxLevel, int forcedJobId) {
+        return createBot(pos, map, baseClass, minLevel, maxLevel, forcedJobId, null);
+    }
+
+    /** Stable, world-unique names let persistent venue stock retain its owner across restarts. */
+    public static int createBot(Point pos, MapleMap map, int baseClass, int minLevel,
+                                int maxLevel, int forcedJobId, String stableName) {
+        if (stableName != null && (!stableName.matches("[A-Za-z0-9]{4,13}")))
+            throw new IllegalArgumentException("venue bot name");
+        if (stableName != null && map.getChannelServer().getPlayerStorage().getCharacterByName(stableName) != null)
+            throw new IllegalStateException("Venue bot name already online");
         int cid = 2; // CID 2 = Base Bot Character
+        Client routedClient = BotClientHandler.getBotClient(map.getWorld(), map.getChannelServer().getId());
 
         Character bot = null;
         try {
-            Character chr = Character.loadCharFromDB(cid, getBotClient(), false);
+            Character chr = Character.loadCharFromDB(cid, routedClient, false);
             bot = chr;
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new IllegalStateException("Could not load bot template", e);
         }
         int botId = SoloMaplingConstants.GameConstants.BOT_BASE_ID + currentBotCount.getAndIncrement();
-        bot = setBotStats(bot, botId); // Bot onDemandBot
-        addBotToServer(bot);
-        placeBotOnMap(bot, pos, map);
-        // Decorate before the drop-down plays so the bot arrives fully dressed
-        // (decoration is an in-memory cache lookup, takes microseconds).
-        if (baseClass <= 0) {
-            setBotVariables(bot);
-        } else {
-            setBotVariables(bot, baseClass, minLevel, maxLevel, forcedJobId);
+        bot = setBotStats(bot, botId, routedClient); // Bot onDemandBot
+        if (stableName != null) bot.setName(stableName);
+        try {
+            addBotToServer(bot);
+            placeBotOnMap(bot, pos, map);
+            // Decorate before the drop-down plays so the bot arrives fully dressed
+            // (decoration is an in-memory cache lookup, takes microseconds).
+            if (baseClass <= 0) {
+                setBotVariables(bot);
+            } else {
+                setBotVariables(bot, baseClass, minLevel, maxLevel, forcedJobId);
+            }
+            // Choreography sleeps ~2.5-6s in total; play it on a virtual thread so
+            // mass spawning isn't gated on each bot's arrival animation. Drop-down ->
+            // turn-around ordering is preserved because it's one sequential task.
+            Character finalBot = bot;
+            runAsync(() -> playSpawnChoreography(finalBot));
+            return botId;
+        } catch (RuntimeException failure) {
+            if (stableName != null && map.getChannelServer().getPlayerStorage().getCharacterById(botId) == bot) {
+                try { removeBotFromServer(bot); }
+                catch (RuntimeException cleanupFailure) { failure.addSuppressed(cleanupFailure); }
+            }
+            throw failure;
         }
-        // Choreography sleeps ~2.5-6s in total; play it on a virtual thread so
-        // mass spawning isn't gated on each bot's arrival animation. Drop-down ->
-        // turn-around ordering is preserved because it's one sequential task.
-        Character finalBot = bot;
-        runAsync(() -> playSpawnChoreography(finalBot));
-        return botId;
     }
 
 
@@ -147,6 +166,7 @@ public class BotGeneration {
     private static void playSpawnChoreography(Character fakechar) {
         long dropDelayMs = ThreadLocalRandom.current().nextLong(500, 1201);
         if (!BotHelpers.blockingSleep(dropDelayMs)) return;
+        if (fakechar.getClient().getChannelServer().getPlayerStorage().getCharacterById(fakechar.getId()) != fakechar) return;
         botEnterPortalDropDown(fakechar);
 
         // Bots spawn facing right by default, so a 50% roll to flip to left gives
@@ -154,6 +174,7 @@ public class BotGeneration {
         if (ThreadLocalRandom.current().nextBoolean()) {
             long turnDelayMs = ThreadLocalRandom.current().nextLong(1000, 1501);
             if (!BotHelpers.blockingSleep(turnDelayMs)) return;
+            if (fakechar.getClient().getChannelServer().getPlayerStorage().getCharacterById(fakechar.getId()) != fakechar) return;
             microTurnAroundToLeft(fakechar);
         }
     }
@@ -171,9 +192,9 @@ public class BotGeneration {
         return onDemandBot;
     }
 
-    private static Character setBotStats(Character baseChr, int botId) {
+    private static Character setBotStats(Character baseChr, int botId, Client routedClient) {
         Character onDemandBot = baseChr; // Character.getDefault(c)
-        onDemandBot.setClient(getBotClient());
+        onDemandBot.setClient(routedClient);
         onDemandBot.setName(getRandomCharacterIGN());
         onDemandBot.setID(botId);
         onDemandBot.setFame(botId); // debug purposes
@@ -181,9 +202,15 @@ public class BotGeneration {
     }
 
     public static void removeBotFromServer(Character fakechar) {
+        BotSM actor = CharacterStorage.getBotById(fakechar.getId());
+        if (actor != null) {
+            actor.setRunning(false);
+            actor.stopScheduledTask();
+        }
         fakechar.getMap().removePlayer(fakechar);
-        channel.removePlayer(fakechar);
-        world.getPlayerStorage().removePlayer(fakechar.getId());
+        fakechar.getClient().getChannelServer().removePlayer(fakechar);
+        Server.getInstance().getWorld(fakechar.getMap().getWorld())
+                .getPlayerStorage().removePlayer(fakechar.getId());
         CharacterStorage.removeActiveBot(fakechar.getId());//
         BotBuffDriver.clearBot(fakechar.getId());   // Phase 3a: release buff recast timers
         BotBuffRequestHandler.clearBot(fakechar.getId());   // release chat-buff-request cooldown
@@ -191,9 +218,10 @@ public class BotGeneration {
 
     private static void addBotToServer(Character fakechar) {
 //        final Channel channel = Server.getInstance().getChannel(BotSM.GameConstants.WORLD_SCANIA, BotSM.GameConstants.CHANNEL_1);
-        channel.addPlayer(fakechar);
+        fakechar.getClient().getChannelServer().addPlayer(fakechar);
 //        World world = Server.getInstance().getWorld(BotSM.GameConstants.WORLD_SCANIA);
-        world.getPlayerStorage().addPlayer(fakechar);
+        Server.getInstance().getWorld(fakechar.getMap().getWorld())
+                .getPlayerStorage().addPlayer(fakechar);
     }
 
     public static void spawnBotFm(Character fakechar, Point pt) {

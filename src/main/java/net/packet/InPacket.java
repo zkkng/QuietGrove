@@ -3,6 +3,7 @@ package net.packet;
 import java.awt.*;
 
 public interface InPacket extends Packet {
+    default long receivedAtNs() {return System.nanoTime();}
     byte readByte();
     short readUnsignedByte();
     short readShort();

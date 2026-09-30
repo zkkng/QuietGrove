@@ -2,6 +2,7 @@ package soloMapling.Environment;
 
 import client.Character;
 import client.Job;
+import config.YamlConfig;
 import server.maps.MapleMap;
 import soloMapling.ArtificialPlayer.BotGeneration;
 import soloMapling.ArtificialPlayer.BotMovementSystem.MovementCommands;
@@ -147,8 +148,7 @@ public class EnvironmentManager {
 
         runWave(6, "Specialty areas", List.of(
                 () -> spawnBlackjackTables(),
-                () -> spawnDropGameBotPotionShop(),
-                () -> spawnDropGameSpectatorsPotionShop(),
+                () -> server.trainer.TrainerVenueService.start(),
                 () -> spawnSocialBotsPetPark(),
                 () -> convertRandomFillersToScrollBots()
         ));
@@ -307,7 +307,9 @@ public class EnvironmentManager {
             Point spawnAt = i < spots.size() ? spots.get(i) : anchor;
             int baseClass = BotDecorate.rollBaseClass(); // weighted 1..4 (Pirate excluded), gear/job set together
             try {
-                int botId = BotGeneration.createBot(spawnAt, map, baseClass, loLevel, hiLevel);
+                String durableName = type == BotTypeManager.BotType.SOCIAL_BOT && map.getWorld() == 0
+                        ? server.trainer.TrainerSocialStock.name(mapId, map.getChannelServer().getId(), i) : null;
+                int botId = BotGeneration.createBot(spawnAt, map, baseClass, loLevel, hiLevel, 0, durableName);
                 if (botId > 0) {
                     ids.add(botId);
                 }
@@ -662,6 +664,9 @@ public class EnvironmentManager {
     }
 
     public static void spawnTutorialBot() {
+        if (!YamlConfig.config.server.ENABLE_DEMO_TUTORIAL) {
+            return;
+        }
         debugprint("Spawning Tutorial Bot on Maple Island...");
         Point spawn = new Point(158, 485);
         Character fakechar = createBotWithRetry(spawn, MAPLE_ISLAND_TUTORIAL, 5);

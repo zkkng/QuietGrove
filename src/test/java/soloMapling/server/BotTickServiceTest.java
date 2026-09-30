@@ -54,6 +54,38 @@ class BotTickServiceTest {
         assertEquals(1, maxConcurrent.get(), "two ticks ran concurrently for one bot");
     }
 
+    @Test void committedEventTicksUseWorkersIndependentOfPinnedAmbientCarriers() throws Exception {
+        var tasks=soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared();
+        var pending=tasks.reserveEvent("tick-isolation-test",botId,0,1,
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.EventRole.PARTICIPANT,
+                System.currentTimeMillis()+10_000,
+                new soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.PriorActivity("SOCIAL_BOT",100000000,100000000)).orElseThrow();
+        var lease=tasks.commitEvent(pending).orElseThrow();
+        try {
+            var thread=new java.util.concurrent.atomic.AtomicReference<Thread>();
+            var ticked=new CountDownLatch(1);
+            BotTickService.register(botId,()->{thread.set(Thread.currentThread());ticked.countDown();},0,60_000);
+            assertTrue(ticked.await(3,TimeUnit.SECONDS));
+            assertFalse(thread.get().isVirtual());
+            assertTrue(thread.get().getName().startsWith("boss-event-tick-"));
+        }finally {BotTickService.unregister(botId);tasks.releaseEvent(botId,lease.generation());}
+    }
+
+    @Test
+    void eventCompletionRemainsIndependentAfterItsActorLeaseIsReleased() throws Exception {
+        // Completion/restoration have already released the event lease and cannot
+        // rely on the tick wheel's committed-actor dispatch test.
+        var thread = new java.util.concurrent.atomic.AtomicReference<Thread>();
+        var completed = new CountDownLatch(1);
+        BotTickService.runEventLifecycle(() -> {
+            thread.set(Thread.currentThread());
+            completed.countDown();
+        });
+        assertTrue(completed.await(3, TimeUnit.SECONDS));
+        assertFalse(thread.get().isVirtual());
+        assertTrue(thread.get().getName().startsWith("boss-event-tick-"));
+    }
+
     @Test
     void periodIsMeasuredFromTickCompletion() throws Exception {
         List<Long> startTimes = new CopyOnWriteArrayList<>();

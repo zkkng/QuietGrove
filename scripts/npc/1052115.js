@@ -1,79 +1,29 @@
-var status = 0;
-var section = 0;
-
-//questid 29931, infoquest 7662
-
-function start() {
-    action(1, 0, 0);
-}
-
-function action(mode, type, selection) {
-    if (mode == 1) {
-        status++;
-    } else {
-        status--;
+var Survival=Java.type("server.partyquest.Pyramid");
+var Medals=Java.type("server.content.Medals");
+var subway=true, status=0, chosen=0, party=false;
+function start(){
+    var run=cm.getPlayer().getPartyQuest();
+    if(run!=null){cm.sendYesNo("Leave this survival challenge?");status=10;return;}
+    var lobby=subway?910320000:926010000;
+    if(cm.getMapId()!=lobby){
+        cm.sendSimple("Your results and uncollected bonus passes are saved.\r\n#L5#Collect earned bonus passes#l\r\n#L6#Return to the waiting area#l");return;
     }
-    if (status == 1) {
-        if (cm.getMapId() == 910320001) {
-            cm.warp(910320000, 0);
-            cm.dispose();
-        } else if (cm.getMapId() == 910330001) {
-            var itemid = 4001321;
-            if (!cm.canHold(itemid)) {
-                cm.sendOk("Please make room for 1 ETC slot.");
-            } else {
-                cm.gainItem(itemid, 1);
-                cm.warp(910320000, 0);
-            }
-            cm.dispose();
-        } else if (cm.getMapId() >= 910320100 && cm.getMapId() <= 910320304) {
-            cm.sendYesNo("Would you like to exit this place?");
-            status = 99;
-        } else {
-            cm.sendSimple("My name is Mr.Lim.\r\n#b#e#L1#Enter the Dusty Platform.#l#n\r\n#L2#Head towards Train 999.#l\r\n#L3#Receive a medal of <Honorary Employee>.#l#k");
-        }
-    } else if (status == 2) {
-        section = selection;
-        if (selection == 1) {
-            if (cm.getPlayer().getLevel() < 25 || cm.getPlayer().getLevel() > 30 || !cm.isLeader()) {
-                cm.sendOk("You must be in the Level Range 25-30 and be the party leader.");
-            } else {
-                if (!cm.start_PyramidSubway(-1)) {
-                    cm.sendOk("The Dusty Platform is currently full at the moment.");
-                }
-            }
-            //todo
-        } else if (selection == 2) {
-            if (cm.haveItem(4001321)) {
-                if (cm.bonus_PyramidSubway(-1)) {
-                    cm.gainItem(4001321, -1);
-                } else {
-                    cm.sendOk("The Train 999 is currently full at the moment");
-                }
-            } else {
-                cm.sendOk("You do not have the Boarding Pass.");
-            }
-        } else if (selection == 3) {
-            var record = cm.getQuestRecord(7662);
-            var data = record.getCustomData();
-            if (data == null) {
-                record.setCustomData("0");
-                data = record.getCustomData();
-            }
-            var mons = parseInt(data);
-            if (mons < 10000) {
-                cm.sendOk("Please defeat at least 10,000 monsters in the Station and look for me again. Kills : " + mons);
-            } else if (cm.canHold(1142141) && !cm.haveItem(1142141)) {
-                cm.gainItem(1142141, 1);
-                cm.startQuest(29931);
-                cm.completeQuest(29931);
-            } else {
-                cm.sendOk("Please make room.");
-            }
-        }
-        cm.dispose();
-    } else if (status == 100) {
-        cm.warp(910320000, 0);
-        cm.dispose();
+    cm.sendSimple(""+(subway?"Dusty Platform: three two-minute stages. Level 25+.":"Nett's Pyramid: five stages, two minutes then three minutes each. Level 40+.")+" Keep hunting to maintain the Act Gauge; misses reduce it. Solo or parties of up to four are welcome. Higher-level players may revisit.\r\n"+(subway?"":"Avoid Pharaoh Yetis unless using Rage of Pharaoh. Earn a charge every 500 points, up to six; use the native skill or type @pharaoh.\r\n")+"#L0#Enter alone#l\r\n#L1#Enter with my party#l\r\n#L2#Use a bonus pass (solo, 60 seconds)#l\r\n#L3#Claim the hunting medal#l\r\n#L5#Collect earned bonus passes#l");
+}
+function action(mode,type,selection){
+    if(mode!=1){cm.dispose();return;}
+    if(status==10){status=2;var run=cm.getPlayer().getPartyQuest();cm.dispose();if(run!=null)run.leave(cm.getPlayer(),true);return;}
+    if(status==0){
+        if(selection==5){status=2;cm.sendOk(Survival.collectTickets(cm.getPlayer(),subway));cm.dispose();return;}
+        if(selection==6){status=2;cm.warp(subway?910320000:926010000,0);cm.dispose();return;}
+        if(selection==3){status=2;cm.sendOk(Medals.interact(cm.getPlayer(),subway?29931:29932));cm.dispose();return;}
+        if(selection<0 || selection>2){cm.dispose();return;}
+        chosen=selection;party=selection==1;
+        if(!subway){status=1;cm.sendSimple("Select difficulty. Bonus passes must match.\r\n#L0#Easy (40+)#l\r\n#L1#Normal (46+)#l\r\n#L2#Hard (51+)#l\r\n#L3#Hell (61+)#l");return;}
+        selection=0;
+    }
+    if(status==0 || status==1){
+        status=2;var result=Survival.enter(cm.getPlayer(),selection,subway,party,chosen==2);
+        if(result.length>0)cm.sendOk(result);cm.dispose();
     }
 }

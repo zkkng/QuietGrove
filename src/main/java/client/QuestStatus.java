@@ -67,7 +67,7 @@ public class QuestStatus {
     private int npc;
     private long completionTime, expirationTime;
     private int forfeited = 0, completed = 0;
-    private String customData;
+    private volatile String customData;
 
     public QuestStatus(Quest quest, Status status) {
         this.questID = quest.getId();

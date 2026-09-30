@@ -45,8 +45,9 @@ function action(mode, type, selection) {
             cm.sendNext("The Scroll of Secrets can be deciphered by #rChun Ji#k or \r\n#rGeanie#k at Ludibrium. Bring it with you and something good's bound to happen.");
         } else if (status == 3) {
             if (cm.canHold(4031019)) {
-                cm.gainItem(4031019);
-                cm.warp(cm.getPlayer().getSavedLocation("EVENT"));
+                if (!cm.claimGmEventReward()) {
+                    cm.sendOk("No unclaimed winning result was found, or your reward could not fit. Please leave with @leaveevent if needed.");
+                }
                 cm.dispose();
             } else {
                 cm.sendNext("I think your Etc window is full. Please make room, then talk to me.");

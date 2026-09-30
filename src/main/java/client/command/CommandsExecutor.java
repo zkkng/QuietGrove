@@ -366,6 +366,9 @@ public class CommandsExecutor {
         addCommand("reportbug", ReportBugCommand.class);
         addCommand("points", ReadPointsCommand.class);
         addCommand("joinevent", JoinEventCommand.class);
+        addCommand("event", client.command.commands.gm0.EventCommand.class);
+        addCommand("trainer", client.command.commands.gm0.TrainerCommand.class);
+        addCommand("venue", client.command.commands.gm0.VenueCommand.class);
         addCommand("leaveevent", LeaveEventCommand.class);
         addCommand("ranks", RanksCommand.class);
         addCommand("str", StatStrCommand.class);
@@ -478,6 +481,7 @@ public class CommandsExecutor {
         addCommand("closeportal", 3, ClosePortalCommand.class);
         addCommand("pe", 3, PeCommand.class);
         addCommand("startevent", 3, StartEventCommand.class);
+        addCommand("bossmetrics", 3, client.command.commands.gm3.BossMetricsCommand.class);
         addCommand("endevent", 3, EndEventCommand.class);
         addCommand("startmapevent", 3, StartMapEventCommand.class);
         addCommand("stopmapevent", 3, StopMapEventCommand.class);

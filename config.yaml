@@ -4,14 +4,14 @@
 worlds:
     #Properties for Scania 0
   - flag: 0
-    server_message: ""
-    event_message: Scania!
-    why_am_i_recommended: Welcome to Scania!
+    server_message: "SoloMapling v83 - 4x EXP / 8x Meso / 2x Drop"
+    event_message: SoloMapling!
+    why_am_i_recommended: A lively old-school solo world with fair progression.
     channels: 3
-    exp_rate: 2
-    meso_rate: 2
+    exp_rate: 4
+    meso_rate: 8
     drop_rate: 2
-    boss_drop_rate: 5                      #NOTE: Boss drop rate OVERRIDES common drop rate, for bosses-only.
+    boss_drop_rate: 3                      #NOTE: Boss drop rate OVERRIDES common drop rate, for bosses-only.
     quest_rate: 5                           #Multiplier for Exp & Meso gains when completing a quest. Only available when USE_QUEST_RATE is true. Stacks with server Exp & Meso rates.
     fishing_rate: 10                        #Multiplier for success likelihood on meso thrown during fishing.
     travel_rate: 10                         #Means of transportation rides/departs using 1/N of the default time.
@@ -172,7 +172,7 @@ server:
     CHANNEL_LOAD: 2000                   #Max players per channel (limit actually used to calculate the World server capacity).
     CHANNEL_LOCKS: 20                   #Total number of structure management locks each channel has.
 
-    RESPAWN_INTERVAL: 4000              #SoloMapling respawn experiment: 5s pass (was 10000) - see Fable Plan 2026-07-07. git revert to restore stock.
+    RESPAWN_INTERVAL: 10000             #Stock Cosmic/HeavenMS respawn pass: 10 seconds; individual WZ mobTime remains authoritative.
     PURGING_INTERVAL: 300000            #5 minutes, 300000.
     RANKING_INTERVAL: 3600000           #60 minutes, 3600000.
     COUPON_INTERVAL: 3600000            #60 minutes, 3600000.
@@ -185,6 +185,7 @@ server:
     BYPASS_PIN_EXPIRATION: 15           #Enables PIN bypass, which will remain active for that account by that client machine for N minutes. Set 0 to disable.
 
     AUTOMATIC_REGISTER: true        #Automatically register players when they login with a nonexistent username.
+    ENABLE_DEMO_TUTORIAL: false     #Development-only: grants GM powers, levels, NX and large gifts. Never enable for ordinary players.
     BCRYPT_MIGRATION: true          #Performs a migration from old SHA-1 and SHA-512 password to bcrypt.
     COLLECTIVE_CHARSLOT: false      #Available character slots are contabilized globally rather than per world server.
     DETERRED_MULTICLIENT: false     #Enables detection of multi-client and suspicious remote IP on the login system.
@@ -196,8 +197,8 @@ server:
     LOGIN_ATTEMPT_DURATION: 120         #Period in seconds the login attempt remains registered on the system.
 
     #Ip Configuration
-    HOST: 127.0.0.1                 #WAN IPv4 address
-    LANHOST: 127.0.0.1              #LAN IPv4 address
+    HOST: 192.168.1.103             #LAN address advertised to game clients; no WAN forwarding configured.
+    LANHOST: 192.168.1.103          #LAN IPv4 address
     LOCALHOST: 127.0.0.1            #Loopback IPv4 address
     GMSERVER: false
 
@@ -212,7 +213,7 @@ server:
     USE_DEBUG_SHOW_RCVD_PACKET: false   #Prints on the cmd all received packet ids.
     USE_DEBUG_SHOW_RCVD_MVLIFE: false   #Prints on the cmd all received move life content.
     USE_DEBUG_SHOW_PACKET: false
-    USE_SUPPLY_RATE_COUPONS: true       #Allows rate coupons to be sold through the Cash Shop.
+    USE_SUPPLY_RATE_COUPONS: false      #Keep the tuned progression predictable; do not sell extra rate multipliers.
     USE_IP_VALIDATION: false             #Enables IP checking when logging in.
     USE_CHARACTER_ACCOUNT_CHECK: false  #Enables one-character-per-account check when logging in. This might be resource intensive.
 
@@ -265,7 +266,7 @@ server:
 
     #Events/PQs Configuration
     USE_OLD_GMS_STYLED_PQ_NPCS: true     #Enables PQ NPCs with similar behaviour to old GMS style, that skips info about the PQs and immediately tries to register the party in.
-    USE_ENABLE_SOLO_EXPEDITIONS: false    #Enables start expeditions with any number of players. This will also bypass all the Zakum prequest.
+    USE_ENABLE_SOLO_EXPEDITIONS: true     #Solo server: allow expeditions with one player and bypass Zakum party gating.
     USE_ENABLE_DAILY_EXPEDITIONS: false  #Enables daily entry limitations in expeditions.
     USE_ENABLE_RECALL_EVENT: false        #Enables a disconnected player to reaccess the last event instance they were in before logging out. Recall only works if the event isn't cleared or disposed yet. Suggestion thanks to Alisson (Goukken).
 
@@ -282,7 +283,7 @@ server:
 
     #Maker Configuration
     USE_MAKER_PERMISSIVE_ATKUP: false    #Allows players to use attack-based strengthening gems on non-weapon items.
-    USE_MAKER_FEE_HEURISTICS: true      #Apply compiled values for stimulants and reagents into the Maker fee calculations (max error revolves around 50k mesos). Set false to use basic constant values instead (results are never higher than requested by the client-side).
+    USE_MAKER_FEE_HEURISTICS: true      #Legacy compatibility field; Maker now uses the exact v83 client fee formula.
 
     #Custom Configuration
     USE_ENABLE_CUSTOM_NPC_SCRIPT: false  #Enables usage of custom HeavenMS NPC scripts (Agent E, Coco, etc). Will not disable Abdula (it's actually useful for the gameplay) or quests.
@@ -299,6 +300,12 @@ server:
     EXP_SPLIT_LEECH_INTERVAL: 5            #Non-contributing players must be within N level between any contributing party member to receive EXP.
     EXP_SPLIT_MVP_MOD: 0.2
     EXP_SPLIT_COMMON_MOD: 0.8
+    COMPANIONS_ENABLED: true # Combined boss/companion release enabled for the owner's playtest.
+    COMPANION_GLOBAL_CAP: 30
+    COMPANION_LEADER_GRACE_MS: 90000
+    COMPANION_ROUTE_TIMEOUT_MS: 45000
+    COMPANION_LEASH_X: 700
+    COMPANION_LEASH_Y: 350
     PARTY_BONUS_EXP_RATE: 1.0            #Rate for the party exp bonus reward.
 
     #Miscellaneous Configuration

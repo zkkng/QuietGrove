@@ -26,6 +26,7 @@ import client.inventory.Item;
 import tools.PacketCreator;
 
 import java.awt.*;
+import java.util.UUID;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -39,6 +40,14 @@ public class MapItem extends AbstractMapObject {
     protected byte type;
     protected boolean pickedUp = false, playerDrop, partyDrop, permanentOwner;
     protected long dropTime;
+    // Only explicit short-lived game prizes use this deadline. Normal drops
+    // retain the map's ordinary lifetime and ownership rules.
+    private volatile long pickupExpiresAt = Long.MAX_VALUE;
+    // Set only after an inventory/meso transfer succeeds. Expiry and map cleanup
+    // also set pickedUp, so that flag alone is not evidence of a player pickup.
+    private volatile int collectedByCharacterId;
+    private volatile UUID venueRoundId;
+    private volatile UUID venueAssetId;
     private final Lock itemLock = new ReentrantLock();
 
     public MapItem(Item item, Point position, MapObject dropper, Character owner, Client ownerClient, byte type, boolean playerDrop) {
@@ -181,8 +190,35 @@ public class MapItem extends AbstractMapObject {
         this.pickedUp = pickedUp;
     }
 
+    public void markCollectedBy(Character collector) {
+        collectedByCharacterId = collector.getId();
+    }
+
+    public int getCollectedByCharacterId() {
+        return collectedByCharacterId;
+    }
+
+    /** Only a venue service may mark its own finite, ledger-reserved drop. */
+    public void markVenueAsset(UUID roundId, UUID assetId) {
+        if (roundId == null || assetId == null || venueAssetId != null)
+            throw new IllegalArgumentException("venue drop identity");
+        venueRoundId = roundId;
+        venueAssetId = assetId;
+    }
+
+    public UUID getVenueRoundId() { return venueRoundId; }
+    public UUID getVenueAssetId() { return venueAssetId; }
+
     public long getDropTime() {
         return dropTime;
+    }
+
+    public void setPickupExpiresAt(long deadlineMs) {
+        pickupExpiresAt = deadlineMs;
+    }
+
+    public boolean pickupExpired(long nowMs) {
+        return nowMs >= pickupExpiresAt;
     }
 
     public void setDropTime(long time) {

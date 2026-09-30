@@ -55,7 +55,9 @@ public class Pet extends Item {
     private int petAttribute = 0;
 
     public enum PetAttribute {
-        OWNER_SPEED(0x01);
+        OWNER_SPEED(0x01),
+        RECALL(0x80),
+        AUTO_SPEAK(0x100);
 
         private final int i;
 
@@ -101,7 +103,7 @@ public class Pet extends Item {
              PreparedStatement ps = con.prepareStatement("DELETE FROM pets WHERE `petid` = ?")) {
             // thanks Vcoc for detecting petignores remaining after deletion
             ps.setInt(1, petid);
-
+            ps.executeUpdate();
             owner.resetExcluded(petid);
             CashIdGenerator.freeCashId(petid);
         } catch (SQLException ex) {

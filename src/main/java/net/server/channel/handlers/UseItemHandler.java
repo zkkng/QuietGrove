@@ -33,6 +33,7 @@ import net.AbstractPacketHandler;
 import net.packet.InPacket;
 import server.ItemInformationProvider;
 import server.StatEffect;
+import server.pccafe.PcCafe;
 import tools.PacketCreator;
 
 /**
@@ -72,6 +73,28 @@ public final class UseItemHandler extends AbstractPacketHandler {
                 remove(c, slot);
                 return;
             } else if (ItemConstants.isTownScroll(itemId)) {
+                // Only actual return-scroll items get this override; the legacy
+                // isTownScroll predicate also matches unrelated higher item IDs.
+                if (itemId / 10000 == 203 && PcCafe.isCafeMap(chr.getMapId())) {
+                    if (chr.getMapId() == PcCafe.HUB) {
+                        c.sendPacket(PacketCreator.enableActions());
+                        return;
+                    }
+                    var lobby = c.getChannelServer().getMapFactory().getMap(PcCafe.HUB);
+                    var portal = lobby == null ? null : lobby.getPortal(0);
+                    if (portal == null) {
+                        chr.dropMessage(5, "The PC Café lobby is unavailable. Your scroll was not used.");
+                        c.sendPacket(PacketCreator.enableActions());
+                        return;
+                    }
+                    chr.changeMap(lobby, portal);
+                    if (chr.getMapId() == PcCafe.HUB) {
+                        remove(c, slot);
+                    } else {
+                        c.sendPacket(PacketCreator.enableActions());
+                    }
+                    return;
+                }
                 if (ii.getItemEffect(toUse.getItemId()).applyTo(chr)) {
                     remove(c, slot);
                 }

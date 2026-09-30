@@ -32,6 +32,9 @@ public class ServerConfig {
     public int BYPASS_PIN_EXPIRATION;
 
     public boolean AUTOMATIC_REGISTER;
+    // The upstream demo tutorial grants GM powers, levels, NX and large gifts.
+    // Keep disabled for a shared world; opt in only on a private development server.
+    public boolean ENABLE_DEMO_TUTORIAL = false;
     public boolean BCRYPT_MIGRATION;
     public boolean COLLECTIVE_CHARSLOT;
     public boolean DETERRED_MULTICLIENT;
@@ -150,6 +153,13 @@ public class ServerConfig {
     public float EXP_SPLIT_MVP_MOD;
     public float EXP_SPLIT_COMMON_MOD;
     public float PARTY_BONUS_EXP_RATE;
+    // Enable only with the reviewed combined companion/client release; existing ambient bots are unchanged.
+    public boolean COMPANIONS_ENABLED = false;
+    public int COMPANION_GLOBAL_CAP = 30;
+    public int COMPANION_LEADER_GRACE_MS = 90000;
+    public int COMPANION_ROUTE_TIMEOUT_MS = 45000;
+    public int COMPANION_LEASH_X = 700;
+    public int COMPANION_LEASH_Y = 350;
 
     //Miscellaneous Configuration
     public String TIMEZONE;

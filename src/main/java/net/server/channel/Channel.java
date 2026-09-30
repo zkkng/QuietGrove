@@ -188,6 +188,13 @@ public final class Channel {
 
             log.info("Shutting down channel {} in world {}", channel, world);
 
+            server.events.gm.GmEventService.getInstance().cancelChannel(this);
+            server.events.gm.WaveInvasionService.getInstance().stopChannel(this);
+            server.events.gm.IncidentService.getInstance().cancelChannel(this);
+            if (config.YamlConfig.config.server.COMPANIONS_ENABLED
+                    || soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared().occupiedCapacity() > 0)
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().cancelChannel(world, channel);
+
             closeAllMerchants();
             disconnectAwayPlayers();
             players.disconnectAll();

@@ -9,7 +9,12 @@ public enum EventType {
     MASTERY_RESULT("Mastery Result"),
     EMOTE("Emote"),
     CHAT_GENERAL("General Chat"),
-    MAP_ENTERED("Player Entered Map");
+    MAP_ENTERED("Player Entered Map"),
+    INCIDENT_STARTED("Incident Started"),
+    INCIDENT_WITNESSED("Incident Witnessed"),
+    INCIDENT_REPORTED("Incident Reported"),
+    INCIDENT_RESOLVED("Incident Resolved"),
+    INCIDENT_CANCELLED("Incident Cancelled");
 
     private final String description;
 

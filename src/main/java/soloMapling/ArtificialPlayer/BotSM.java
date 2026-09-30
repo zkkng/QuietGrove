@@ -71,7 +71,10 @@ public abstract class BotSM implements EventSubscriber {
 
     // One shared tick body for every (re)schedule path - start / priority change / nudge.
     private final Runnable tickRunnable = () -> {
+        synchronized (this) {
         try {
+            if (soloMapling.ArtificialPlayer.BotMessagingSystem.CharacterStorage.getBotById(getChr().getId()) != this) return;
+            if (server.events.gm.IncidentService.handleAmbientDeath(this)) return;
             if (isWaiting()) {
                 return; // FSM-requested pause (waitFor) - skip the tick entirely
             }
@@ -79,6 +82,7 @@ public abstract class BotSM implements EventSubscriber {
             updateState();
         } catch (Exception e) {
             e.printStackTrace(); // Handle exceptions to ensure the scheduler doesn't stop unexpectedly
+        }
         }
     };
 
@@ -108,6 +112,8 @@ public abstract class BotSM implements EventSubscriber {
     protected boolean isWaiting() {
         return System.currentTimeMillis() < waitUntilMs;
     }
+
+    public boolean activityPaused() {return isWaiting();}
 
     // Map-entry responsiveness (see BotMapEntryResponder): timestamp of the last nudgeSoon, used to
     // debounce repeated entries so the next tick isn't perpetually reset (which would starve the FSM).
@@ -519,6 +525,7 @@ public abstract class BotSM implements EventSubscriber {
 
     @Override
     public boolean matchesFilter(GameEvent event) {
+        if(event.getIncident()!=null && !event.getIncident().audience().contains(getChr().getId())) return false;
         // Check if this event is relevant to this bot
         int targetWorld = getChr().getWorld();
         int targetChannel = getChr().getMap().getChannelServer().getId();

@@ -7,8 +7,9 @@ import com.esotericsoftware.yamlbeans.YamlReader;
 
 public class MapleVersionManager {
 
-    public static int version = 55;
-    public static int itemPoolVersion = 55;
+    // v83 content and generated equipment; independent of the client protocol.
+    public static int version = 83;
+    public static int itemPoolVersion = 83;
 
     private static Map<String, String> npcReleaseVersions;
     private static Map<String, String> portalReleaseVersions;

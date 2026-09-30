@@ -37,9 +37,11 @@ public class ZakumCommand extends Command {
     @Override
     public void execute(Client c, String[] params) {
         Character player = c.getPlayer();
-        player.getMap().spawnFakeMonsterOnGroundBelow(LifeFactory.getMonster(MobId.ZAKUM_1), player.getPosition());
+        var body=LifeFactory.getMonster(MobId.ZAKUM_1);
+        player.getMap().spawnFakeMonsterOnGroundBelow(body, player.getPosition());
         for (int mobId = MobId.ZAKUM_ARM_1; mobId <= MobId.ZAKUM_ARM_8; mobId++) {
-            player.getMap().spawnMonsterOnGroundBelow(LifeFactory.getMonster(mobId), player.getPosition());
+            var part=LifeFactory.getMonster(mobId);part.inheritEncounter(body);
+            player.getMap().spawnMonsterOnGroundBelow(part, player.getPosition());
         }
     }
 }

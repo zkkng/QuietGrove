@@ -68,21 +68,31 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
         }
 
         Monster monster = (Monster) mmo;
+        Boolean aggro = monster.aggroMoveLifeUpdate(player);
+        if (aggro == null) return; // Authorize the controller BEFORE spending MP or applying any attack/skill.
+        var trainer = server.trainer.TrainerService.getInstance();
+        if (trainer.monsterFrozen(monster)) {
+            c.sendPacket(PacketCreator.moveMonsterResponse(objectid, moveid, monster.getMp(), aggro));
+            monster.resetMobPosition(monster.getPosition());
+            return;
+        }
+        boolean trainerDisarmed = trainer.monsterDisarmed(monster);
         List<Character> banishPlayers = null;
 
         byte pNibbles = p.readByte();
         byte rawActivity = p.readByte();
+        boolean facingLeft = (rawActivity & 1) != 0;
         int skillId = p.readByte() & 0xff;
         int skillLv = p.readByte() & 0xff;
         short pOption = p.readShort();
         p.skip(8);
 
-        if (rawActivity >= 0) {
-            rawActivity = (byte) (rawActivity & 0xFF >> 1);
-        }
+        if (trainerDisarmed) { rawActivity = -1; skillId = 0; skillLv = 0; pOption = 0; }
 
-        boolean isAttack = inRangeInclusive(rawActivity, 24, 41);
-        boolean isSkill = inRangeInclusive(rawActivity, 42, 59);
+        byte activity = decodeActivity(rawActivity);
+
+        boolean isAttack = inRangeInclusive(activity, 12, 20);
+        boolean isSkill = inRangeInclusive(activity, 21, 29);
 
         int useSkillId = 0;
         int useSkillLevel = 0;
@@ -101,20 +111,23 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
                         toUse.applyDelayedEffect(player, monster, true, animationTime);
                     } else {
                         banishPlayers = new LinkedList<>();
-                        toUse.applyEffect(player, monster, true, banishPlayers);
+                        toUse.applyEffectFiltered(player, monster, true, banishPlayers,
+                                soloMapling.ArtificialPlayer.CompanionSystem.CompanionMonsterAttacks.actorFence(monster));
                     }
                 }
             }
-        } else {
-            int castPos = (rawActivity - 24) / 2;
+        } else if (isAttack) {
+            int castPos = activity - 12;
             int atkStatus = monster.canUseAttack(castPos, isSkill);
             if (atkStatus < 1) {
                 rawActivity = -1;
                 pOption = 0;
+            } else {
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionMonsterAttacks.accepted(monster, castPos, facingLeft);
             }
         }
 
-        boolean nextMovementCouldBeSkill = !(isSkill || (pNibbles != 0));
+        boolean nextMovementCouldBeSkill = !trainerDisarmed && !(isSkill || (pNibbles != 0));
         MobSkill nextUse = null;
         int nextSkillId = 0;
         int nextSkillLevel = 0;
@@ -140,11 +153,6 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
         short start_y = p.readShort(); // hmm...
         Point startPos = new Point(start_x, start_y - 2);
         Point serverStartPos = new Point(monster.getPosition());
-
-        Boolean aggro = monster.aggroMoveLifeUpdate(player);
-        if (aggro == null) {
-            return;
-        }
 
         if (nextUse != null) {
             c.sendPacket(PacketCreator.moveMonsterResponse(objectid, moveid, mobMp, aggro, nextSkillId, nextSkillLevel));
@@ -178,7 +186,10 @@ public final class MoveLifeHandler extends AbstractMovementPacketHandler {
         }
     }
 
-    private static boolean inRangeInclusive(Byte pVal, Integer pMin, Integer pMax) {
-        return !(pVal < pMin) || (pVal > pMax);
+    static boolean inRangeInclusive(Byte pVal, Integer pMin, Integer pMax) {
+        return pVal >= pMin && pVal <= pMax;
+    }
+    static byte decodeActivity(byte encoded) {
+        return encoded < 0 ? encoded : (byte)((encoded & 0xff) >> 1);
     }
 }

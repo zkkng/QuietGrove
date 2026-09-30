@@ -5,6 +5,7 @@ import client.inventory.Equip;
 import client.inventory.Item;
 import net.packet.Packet;
 import server.maps.MapItem;
+import server.maps.MapleMap;
 import server.maps.MapObject;
 import server.maps.MapObjectType;
 import server.TimerManager;
@@ -56,23 +57,19 @@ public class DropCommands {
                 fakechar.getPosition(), true, true);
     }
 
-    private static final long PICKUP_GRACE_PERIOD_MS = 3000;
-
     public static MapItem botDropItemWithExpiry(Character fakechar, int itemId, boolean isEquip, long expiryMs) {
         Item itemToDrop = isEquip ? BotLogic.generateCleanItemEquip(itemId) : BotLogic.generateCleanItem(itemId);
-        MapItem drop = fakechar.getMap().spawnItemDropNoExpire(fakechar, fakechar, itemToDrop,
+        MapleMap originMap = fakechar.getMap();
+        MapItem drop = originMap.spawnItemDropNoExpire(fakechar, fakechar, itemToDrop,
                 fakechar.getPosition(), true, true);
         if (drop != null && expiryMs > 0) {
+            drop.setPickupExpiresAt(System.currentTimeMillis() + expiryMs);
             TimerManager.getInstance().schedule(() -> {
                 if (drop.isPickedUp()) return;
-                fakechar.getMap().broadcastMessage(
-                        PacketCreator.removeItemFromMap(drop.getObjectId(), 0, 0),
-                        drop.getPosition());
+                // Remove visibility and eligibility in the same map operation.
+                // The former grace period left an invisible prize lootable for 3s.
+                originMap.makeDisappearItemFromMap(drop);
             }, expiryMs);
-
-            TimerManager.getInstance().schedule(() -> {
-                fakechar.getMap().makeDisappearItemFromMap(drop);
-            }, expiryMs + PICKUP_GRACE_PERIOD_MS);
         }
         return drop;
     }
@@ -247,6 +244,7 @@ public class DropCommands {
     // no owner, or whose owner-protection window has expired). Lets bots grab their kills plus loot a real
     // player left on the floor, without stealing another player's still-protected drop.
     public static boolean botCanLoot(Character fakechar, MapItem mapItem) {
+        if (mapItem != null && !soloMapling.ArtificialPlayer.CompanionSystem.BossLoot.allowed(fakechar,mapItem)) return false;
         if (mapItem == null || mapItem.isPickedUp() || mapItem.getPosition() == null) {
             return false;
         }
@@ -261,6 +259,10 @@ public class DropCommands {
     public static void botLootSingleDrop(Character fakechar, MapItem mapItem) {
         if (mapItem == null || mapItem.isPickedUp()) {
             return;
+        }
+        if (mapItem.getDropper() instanceof server.life.Monster monster
+                && soloMapling.ArtificialPlayer.CompanionSystem.BossRegistry.catalogMonster(monster.getId())) {
+            soloMapling.ArtificialPlayer.CompanionSystem.BossLoot.pickup(fakechar,mapItem); return;
         }
         final Packet pickupPacket = PacketCreator.removeItemFromMap(mapItem.getObjectId(), 2, fakechar.getId());
         fakechar.getMap().pickItemDrop(pickupPacket, mapItem);

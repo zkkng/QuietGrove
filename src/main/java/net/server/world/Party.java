@@ -71,13 +71,18 @@ public class Party {
         }
     }
 
-    public void addMember(PartyCharacter member) {
+    public boolean addMember(PartyCharacter member) {
         lock.lock();
         try {
+            if (member == null || members.size() >= 6
+                    || members.stream().anyMatch(existing -> existing.getId() == member.getId())) {
+                return false;
+            }
             histMembers.put(member.getId(), nextEntry);
             nextEntry++;
 
             members.add(member);
+            return true;
         } finally {
             lock.unlock();
         }
@@ -319,6 +324,7 @@ public class Party {
     }
 
     public static boolean createParty(Character player, boolean silentCheck) {
+        synchronized (player) {
         Party party = player.getParty();
         if (party == null) {
             if (player.getLevel() < 10 && !YamlConfig.config.server.USE_PARTY_FOR_STARTERS) {
@@ -349,8 +355,8 @@ public class Party {
 
             return false;
         }
+        }
     }
-
     public static boolean joinParty(Character player, int partyid, boolean silentCheck) {
         Party party = player.getParty();
         World world = player.getWorldServer();
@@ -358,11 +364,8 @@ public class Party {
         if (party == null) {
             party = world.getParty(partyid);
             if (party != null) {
-                if (party.getMembers().size() < 6) {
-                    PartyCharacter partyplayer = new PartyCharacter(player);
+                if (world.tryJoinParty(player, party)) {
                     player.getMap().addPartyMember(player, party.getId());
-
-                    world.updateParty(party.getId(), PartyOperation.JOIN, partyplayer);
                     player.receivePartyMemberHP();
                     player.updatePartyMemberHP();
 

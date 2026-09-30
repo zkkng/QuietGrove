@@ -3,6 +3,7 @@ package soloMapling.ArtificialPlayer.BotTypes;
 import client.Character;
 import client.Skill;
 import client.SkillFactory;
+import server.Trade;
 import soloMapling.ArtificialPlayer.BotCommandsPack.DropCommands;
 import soloMapling.ArtificialPlayer.BotCommandsPack.SocialCommands;
 import soloMapling.ArtificialPlayer.BotHelpers;
@@ -17,6 +18,7 @@ import soloMapling.server.ExecutorServiceManager;
 
 import java.awt.*;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Future;
 
 import static soloMapling.ArtificialPlayer.BotMovementSystem.InPacketReader.getMovementRecording;
@@ -54,6 +56,12 @@ public class DropGameBot extends BotSM {
     private volatile String selectedTier; // "medium" or "elite"
     private volatile Character player;   // the participating player
     private DropGameLootPool lootPool;
+    private volatile UUID paymentRound;
+    private volatile boolean paymentCommitted;
+    private long paymentWaitDeadline;
+    private boolean paymentRefunded;
+    private boolean playableStarted;
+    private int paidEntryMesos;
 
     // --- Timers ---
     private volatile long stateStartTime;
@@ -122,6 +130,12 @@ public class DropGameBot extends BotSM {
         selectedTier = null;
         player = null;
         lootPool = null;
+        paymentRound = null;
+        paymentCommitted = false;
+        paymentWaitDeadline = 0;
+        paymentRefunded = false;
+        playableStarted = false;
+        paidEntryMesos = 0;
         stateStartTime = 0;
         stateEndTime = 0;
         tradeDetected = false;
@@ -325,10 +339,36 @@ public class DropGameBot extends BotSM {
             return;
         }
 
+        if (!BotTradeCommands.getTradePartner(getChr()).getItems().isEmpty()) {
+            BotTradeCommands.writeTradeChat(getChr(), "Mesos only, please. Keep your items!");
+            BotTradeCommands.cancelTrade(getChr());
+            cleanupTradeAndReset();
+            return;
+        }
+        lootPool = DropGameLootPool.load(selectedTier);
+        if (lootPool.isEmpty()) {
+            BotTradeCommands.writeTradeChat(getChr(), "That prize pool is unavailable right now. No payment taken.");
+            BotTradeCommands.cancelTrade(getChr());
+            cleanupTradeAndReset();
+            return;
+        }
+
         // Valid amount - confirm trade
+        paidEntryMesos = offeredMesos;
+        paymentRound = UUID.randomUUID();
+        UUID expectedRound = paymentRound;
+        paymentWaitDeadline = System.currentTimeMillis() + 20_000;
+        getChr().getTrade().setTradeResultCallback(result -> {
+            if (result == Trade.TradeResult.SUCCESSFUL && expectedRound.equals(paymentRound)) {
+                paymentCommitted = true;
+                dprint("payment committed round=" + expectedRound + " mesos=" + paidEntryMesos);
+            }
+        });
         dprint("TRADE_VALIDATE: tier=" + selectedTier + ", confirming trade");
         BotTradeCommands.writeTradeChat(getChr(), selectedTier.toUpperCase() + " tier locked in!");
-        BotTiming.after(1000, () -> BotTradeCommands.confirmTrade(getChr()));
+        BotTiming.after(1000, () -> {
+            if (expectedRound.equals(paymentRound)) BotTradeCommands.confirmTrade(getChr());
+        });
         waitFor(3000); // confirm lands at +1s; settle ~2s after it, as before
         setDropGameState(DropGameState.TRADE_FINALIZE);
     }
@@ -336,11 +376,17 @@ public class DropGameBot extends BotSM {
     // --- TRADE FINALIZE ---
     // One tick after the delayed trade confirm: load loot pool, announce tier.
     private void tradeFinalize() {
-        lootPool = DropGameLootPool.load(selectedTier);
+        if (!paymentCommitted) {
+            if (isTradeActive() && System.currentTimeMillis() < paymentWaitDeadline) return;
+            dprint("TRADE_FINALIZE: no successful payment callback; resetting without a round");
+            cancelAndReset("Trade did not complete. No game started.");
+            return;
+        }
         dprint("TRADE_FINALIZE: loot pool loaded, size=" + lootPool.size());
         if (lootPool.isEmpty()) {
             dprint("TRADE_FINALIZE: loot pool empty for tier=" + selectedTier);
-            BotSpeak(getChr(), "Loot pool error. Refunding and resetting.");
+            refundBeforeStart("Prize pool unavailable after payment");
+            BotSpeak(getChr(), "Prize pool unavailable. Entry returned.");
             cleanupTradeAndReset();
             return;
         }
@@ -368,7 +414,8 @@ public class DropGameBot extends BotSM {
         boolean invited = BotPartyCommands.botInvitePlayer(getChr(), player);
         dprint("PARTY_SETUP: botInvitePlayer -> " + invited);
         if (!invited) {
-            BotSpeak(getChr(), "Couldn't send party invite. Resetting.");
+            refundBeforeStart("Party invite could not be sent");
+            BotSpeak(getChr(), "Couldn't send the party invite. Entry returned.");
             forfeitAndReset();
             return;
         }
@@ -396,7 +443,8 @@ public class DropGameBot extends BotSM {
         // never joins).
         if (System.currentTimeMillis() > stateEndTime) {
             dprint("PARTY_WAIT: timed out waiting for player to accept");
-            BotSpeak(getChr(), "Party invite timed out — mesos forfeited. Don't waste my time next round!");
+            refundBeforeStart("Party invite timed out");
+            BotSpeak(getChr(), "Party invite timed out. Entry returned.");
             waitFor(2000); // let the line land before POST_GAME disbands + resets
             setDropGameState(DropGameState.POST_GAME);
         }
@@ -438,6 +486,8 @@ public class DropGameBot extends BotSM {
         }
 
         getDialogueHandler().executeBotFlavorDialogue("GameStart", DropGameBot.this);
+
+        playableStarted = true;
 
         // Start the game timer
         stateStartTime = System.currentTimeMillis();
@@ -580,8 +630,22 @@ public class DropGameBot extends BotSM {
     }
 
     private void cancelAndReset(String reason) {
+        refundBeforeStart(reason);
         BotSpeak(getChr(), reason);
         cleanupTradeAndReset();
+    }
+
+    private void refundBeforeStart(String reason) {
+        if (!paymentCommitted || paymentRefunded || playableStarted || paidEntryMesos <= 0) return;
+        if (player == null || !player.isLoggedinWorld()) {
+            log("DropGameBot: UNSETTLED REFUND round=" + paymentRound + " player="
+                    + (player == null ? -1 : player.getId()) + " mesos=" + paidEntryMesos + " reason=" + reason);
+            return;
+        }
+        player.gainMeso(paidEntryMesos);
+        paymentRefunded = true;
+        log("DropGameBot: entry refunded round=" + paymentRound + " player=" + player.getId()
+                + " mesos=" + paidEntryMesos + " reason=" + reason);
     }
 
     private void cleanupTradeAndReset() {

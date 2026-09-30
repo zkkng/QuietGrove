@@ -116,6 +116,11 @@ public class SkillFactory {
 
     private static Skill loadFromData(int id, Data data) {
         Skill ret = new Skill(id);
+        Data requirements = data.getChildByPath("req");
+        if (requirements != null) for (Data requirement : requirements.getChildren()) {
+            try { ret.addPrerequisite(Integer.parseInt(requirement.getName()), DataTool.getIntConvert(requirement)); }
+            catch (NumberFormatException ignored) { /* Non-skill WZ requirements are not SP prerequisites. */ }
+        }
         boolean isBuff = false;
         int skillType = DataTool.getInt("skillType", data, -1);
         String elem = DataTool.getString("elemAttr", data, null);

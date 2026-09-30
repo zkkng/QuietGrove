@@ -1,6 +1,17 @@
 package constants.id;
 
 public class MobId {
+    /** Extra WZ quest counter for a real monster; retain its real ID counter as well. */
+    public static int questCounterAlias(int monster) {
+        return switch (monster) {
+            case GREEN_MUSHROOM, DEJECTED_GREEN_MUSHROOM -> GREEN_MUSHROOM_QUEST;
+            case ZOMBIE_MUSHROOM, ANNOYED_ZOMBIE_MUSHROOM -> ZOMBIE_MUSHROOM_QUEST;
+            case GHOST_STUMP, SMIRKING_GHOST_STUMP -> GHOST_STUMP_QUEST;
+            case 5220001 -> 5220000; // King Clang spawner vs. quest 2161's legacy ID.
+            default -> monster;
+        };
+    }
+
     public static final int ARPQ_BOMB = 9300166;
     public static final int GIANT_CAKE = 9400606;
     public static final int TRANSPARENT_ITEM = 9300216;

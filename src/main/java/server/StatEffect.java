@@ -936,6 +936,8 @@ public class StatEffect {
     public boolean applyToTarget(Character caster, Character target) {
         return applyTo(caster, target, false, null, false, 1);
     }
+    public List<Disease> getCureDebuffs() { return List.copyOf(cureDebuffs); }
+    public double getProbability() { return prop; }
 
     // primary: the player caster of the buff
     private boolean applyTo(Character applyfrom, Character applyto, boolean primary, Point pos, boolean useMaxRange, int affectedPlayers) {
@@ -1022,7 +1024,7 @@ public class StatEffect {
                 }
                 if (projectile == null) {
                     return false;
-                } else {
+                } else if (!server.trainer.TrainerService.getInstance().noAmmo(applyto)) {
                     InventoryManipulator.removeFromSlot(applyto.getClient(), InventoryType.USE, projectile.getPosition(), projectileConsume, false, true);
                 }
             } finally {
@@ -1477,7 +1479,7 @@ public class StatEffect {
             mpchange += (int) (applyfrom.getCurrentMaxMp() * mpR);
         }
         if (primary) {
-            if (mpCon != 0) {
+            if (mpCon != 0 && !(mpCon > 0 && server.trainer.TrainerService.getInstance().noMpCost(applyfrom))) {
                 double mod = 1.0;
                 boolean isAFpMage = applyfrom.getJob().isA(Job.FP_MAGE);
                 boolean isCygnus = applyfrom.getJob().isA(Job.BLAZEWIZARD2);
@@ -1896,6 +1898,8 @@ public class StatEffect {
     public short getMpCon() {
         return mpCon;
     }
+    public int getItemCon() { return itemCon; }
+    public int getItemConNo() { return itemConNo; }
 
     public short getMatk() {
         return matk;

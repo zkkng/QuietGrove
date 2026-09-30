@@ -284,25 +284,24 @@ public class Family {
 
     public void saveAllMembersRep() { //was used for autosave task, but character autosave should be enough
         try (Connection con = DatabaseConnection.getConnection()) {
-            con.setAutoCommit(false);
-            boolean success = true;
-            for (FamilyEntry entry : members.values()) {
-                success = entry.saveReputation(con);
-                if (!success) {
-                    break;
+            boolean autoCommit = con.getAutoCommit();
+            List<Pair<FamilyEntry, FamilyEntry.ReputationSnapshot>> saved = new ArrayList<>();
+            try {
+                con.setAutoCommit(false);
+                for (FamilyEntry entry : members.values()) {
+                    var snapshot = entry.saveReputationSnapshot(con);
+                    if (snapshot != null) saved.add(new Pair<>(entry, snapshot));
                 }
-            }
-            if (!success) {
-                con.rollback();
-                log.error("Family rep autosave failed for family {}", getID());
-            }
-            con.setAutoCommit(true);
-            //reset repChanged after successful save
-            for (FamilyEntry entry : members.values()) {
-                entry.savedSuccessfully();
+                con.commit();
+                for (var result : saved) result.getLeft().savedSuccessfully(result.getRight());
+            } catch (SQLException e) {
+                try { con.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                throw e;
+            } finally {
+                con.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {
-            log.error("Could not get connection to DB while saving all members rep", e);
+            log.error("Could not save Family reputation for family {}", getID(), e);
         }
     }
 }

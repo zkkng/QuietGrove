@@ -39,8 +39,12 @@ import java.util.Set;
  */
 public class MonsterStats {
     public boolean changeable;
+    private int avoidability;
+    public int getAvoidability() { return avoidability; }
+    public void setAvoidability(int avoidability) { this.avoidability = Math.max(0, avoidability); }
     public int exp, hp, mp, level, PADamage, PDDamage, MADamage, MDDamage, dropPeriod, cp, buffToGive = -1, removeAfter;
     public boolean boss, undead, ffaLoot, isExplosiveReward, firstAttack, removeOnMiss;
+    public boolean bodyAttack=true;
     public String name;
     public Map<String, Integer> animationTimes = new HashMap<>();
     public Map<Element, ElementalEffectiveness> resistance = new HashMap<>();

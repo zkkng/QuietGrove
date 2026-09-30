@@ -76,10 +76,12 @@ final class GCMovementDriver {
     }
 
     static void stop(BotMovementState entry) {
+        synchronized (entry) {
         entry.tickStopped = true; // gate the self-reschedule; an in-flight tick may finish once more
         if (entry.task != null) {
             entry.task.cancel(false);
             entry.task = null;
+        }
         }
     }
 
@@ -96,7 +98,10 @@ final class GCMovementDriver {
         if (entry.tickStopped) {
             return;
         }
+        final long dueNs=System.nanoTime()+TimeUnit.MILLISECONDS.toNanos(delayMs);
         entry.task = POOL.schedule(() -> {
+            var telemetry=server.events.gm.EventInstrumentation.forBot(entry.bot.getId());
+            if(telemetry!=null) telemetry.movementLag(dueNs);
             safeTick(entry);
             scheduleNext(entry, nextDelayMs(entry));
         }, delayMs, TimeUnit.MILLISECONDS);
@@ -106,7 +111,9 @@ final class GCMovementDriver {
         Character bot = entry.bot;
         boolean active = bot != null && bot.getMap() != null
                 && ObserverTracker.isActiveMap(bot.getMapId());
-        if (active) {
+        if (active || server.events.gm.GmEventService.getInstance().realPresence(bot)
+                || server.events.gm.EventBotRuntime.physical(bot)
+                || soloMapling.ArtificialPlayer.CompanionSystem.BossMonsterController.incidentActor(bot)) {
             return BotPhysicsEngine.cfg.TICK_MS;
         }
         if (bot != null
@@ -130,11 +137,14 @@ final class GCMovementDriver {
     }
 
     private static void safeTick(BotMovementState entry) {
+        synchronized (entry) {
+        if (entry.tickStopped) return;
         try {
             soloMapling.server.BotPerfStats.MOVEMENT_TICKS.increment();
             tick(entry);
         } catch (Throwable t) {
             // A thrown exception must not break the self-reschedule chain — swallow so the bot keeps ticking.
+        }
         }
     }
 
@@ -151,6 +161,9 @@ final class GCMovementDriver {
             onMapChange(entry, bot);
             return;
         }
+
+        BotEventObstacles.tick(entry, bot);
+        if (server.events.gm.EventBotRuntime.physical(bot) && !bot.isAlive()) return;
 
         // Sitting in a chair (e.g. a grinding TrainingBot on a rest break): hold the sit and skip the
         // tick. botSitChair set the SIT stance and broadcast showChair; if the driver kept idling it
@@ -243,7 +256,8 @@ final class GCMovementDriver {
         // over the baked edge times — no physics, no broadcast — so it costs ~nothing. Falls through to
         // throttled physics when mid-air/climbing or the map has no baked graph (never bake just to move
         // an unwatched bot). `active` is false here only when nobody can see the bot.
-        if (!active && tryCoarseAdvance(entry, bot, target)) {
+        if (!active && !server.events.gm.EventBotRuntime.physical(bot)
+                && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot) && tryCoarseAdvance(entry, bot, target)) {
             return;
         }
         stepMovementCore(entry, target != null ? target : bot.getPosition(), runAiTick);
@@ -461,7 +475,10 @@ final class GCMovementDriver {
         // maps just land on the floor (nobody's watching, and it keeps coarse travel from stalling
         // ~1.5s per hop). The hold + release runs in tick(); beginPortalDrop hands off to the
         // airborne integrator.
-        if (ground != null && ObserverTracker.isActiveMap(bot.getMapId())) {
+        if (server.events.gm.EventBotRuntime.physical(bot)) {
+            BotPhysicsEngine.beginPortalDrop(entry,bot,spawn);
+            entry.portalDropAtMs=0L;
+        } else if (ground != null && ObserverTracker.isActiveMap(bot.getMapId())) {
             // Lift to at least PORTAL_FLOAT_HEIGHT_PX above the floor (keep a higher natural portal),
             // so the bot floats at/above the portal a beat, then drops — every time, not just for
             // portals that happen to sit high.
@@ -542,6 +559,11 @@ final class GCMovementDriver {
         }
         entry.airStuckTicks = 0;
         entry.airStuckX = Integer.MIN_VALUE;
+        if (server.events.gm.EventBotRuntime.physical(entry.bot)
+                || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(entry.bot)) {
+            entry.moveTarget = null; // Companion FSM replans, then releases; never snap to its target.
+            return;
+        }
         // Recovery: snap to ground beneath the goal (or current position).
         MapleMap map = entry.bot.getMap();
         Point goal = entry.moveTarget != null ? entry.moveTarget : entry.navTargetPos;
@@ -574,6 +596,12 @@ final class GCMovementDriver {
         boolean offSides = pos.x < vr.x - FALL_RECOVER_SLACK_PX
                 || pos.x > vr.x + vr.width + FALL_RECOVER_SLACK_PX;
         if (!belowFloor && !offSides) {
+            return;
+        }
+        if (server.events.gm.EventBotRuntime.physical(bot)
+                || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) {
+            bot.updateHp(0); // Out-of-map failure uses ordinary return-map death recovery, not target teleport.
+            entry.moveTarget = null;
             return;
         }
         // Snap to ground under the current goal (grind spot / nav target); if there's no goal, drop onto the

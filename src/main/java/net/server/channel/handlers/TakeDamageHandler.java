@@ -77,6 +77,8 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
         int mpattack = 0;
         Monster attacker = null;
         final MapleMap map = chr.getMap();
+        boolean trainerHpGod = server.trainer.TrainerService.getInstance().hpGod(chr);
+        if (trainerHpGod && damage > 0) damage = 0;
         if (damagefrom != -3 && damagefrom != -4) {
             monsteridfrom = p.readInt();
             oid = p.readInt();
@@ -91,6 +93,7 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                 }
 
                 if (attacker != null) {
+                    if (server.trainer.TrainerService.getInstance().monsterDisarmed(attacker)) return;
                     if (attacker.isBuffed(MonsterStatus.NEUTRALISE)) {
                         return;
                     }
@@ -187,12 +190,13 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
                 }
             }
         }
+        if (trainerHpGod) mpattack = 0;
 
         if (damage == -1) {
             fake = 4020002 + (chr.getJob().getId() / 10 - 40) * 100000;
         }
 
-        if (damage > 0) {
+        if (damage > 0 || trainerHpGod) {
             chr.getAutobanManager().resetMisses();
         } else {
             chr.getAutobanManager().addMiss();
@@ -282,6 +286,10 @@ public final class TakeDamageHandler extends AbstractPacketHandler {
             map.broadcastMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), damage, fake, direction, is_pgmr, pgmr, is_pg, oid, pos_x, pos_y), false);
         } else {
             map.broadcastGMMessage(chr, PacketCreator.damagePlayer(damagefrom, monsteridfrom, chr.getId(), damage, fake, direction, is_pgmr, pgmr, is_pg, oid, pos_x, pos_y), false);
+        }
+        if (trainerHpGod) {
+            chr.updateSingleStat(client.Stat.HP, chr.getHp());
+            chr.updateSingleStat(client.Stat.MP, chr.getMp());
         }
         if (MapId.isDojo(map.getId())) {
             chr.setDojoEnergy(chr.getDojoEnergy() + YamlConfig.config.server.DOJO_ENERGY_DMG);

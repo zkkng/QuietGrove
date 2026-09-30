@@ -1012,14 +1012,34 @@ public class World {
         }
     }
 
+    /** Membership commit shared by human and companion joins. No map/UI side effects on failure. */
+    public boolean tryJoinParty(Character character, Party expectedParty) {
+        synchronized (character) {
+            synchronized (expectedParty) {
+                if (character.getParty() != null || getParty(expectedParty.getId()) != expectedParty) {
+                    return false;
+                }
+                PartyCharacter member = new PartyCharacter(character);
+                if (!expectedParty.addMember(member)) return false;
+                // Publish before notifications: clientless bots may not use the human player storage.
+                character.setParty(expectedParty);
+                character.setMPC(member);
+                updateParty(expectedParty, PartyOperation.JOIN, member);
+                return true;
+            }
+        }
+    }
+
     public void updateParty(int partyid, PartyOperation operation, PartyCharacter target) {
         Party party = getParty(partyid);
         if (party == null) {
             throw new IllegalArgumentException("no party with the specified partyid exists");
         }
+        synchronized (party) {
+        if (getParty(partyid) != party) return;
         switch (operation) {
             case JOIN:
-                party.addMember(target);
+                if (!party.addMember(target)) return;
                 break;
             case EXPEL:
             case LEAVE:
@@ -1058,6 +1078,7 @@ public class World {
                 log.warn("Unhandled updateParty operation: {}", operation.name());
         }
         updateParty(party, operation, target);
+        }
     }
 
     public void removeMapPartyMembers(int partyid) {
@@ -1514,6 +1535,12 @@ public class World {
     }
 
     public void runPetSchedule() {
+        for (Character chr : getPlayerStorage().getAllCharacters()) {
+            if (chr.isLoggedinWorld()) {
+                server.content.Medals.onlineMinute(chr);
+                server.content.RankingMedals.validate(chr);
+            }
+        }
         Map<Integer, Integer> deployedPets;
 
         activePetsLock.lock();

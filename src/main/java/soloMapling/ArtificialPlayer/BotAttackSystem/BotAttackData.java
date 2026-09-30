@@ -140,7 +140,7 @@ public final class BotAttackData {
 
     /* Real magnitude of a packet damage line: crit lines arrive negative-encoded, normal lines pass through. */
     public static int decodeDamageLine(int line) {
-        return line < 0 ? line + Integer.MAX_VALUE : line;
+        return line < 0 ? (int)((long)line - Integer.MIN_VALUE) : line;
     }
 
     /* Random body-action id appropriate for the given weapon class. */

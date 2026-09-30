@@ -102,10 +102,10 @@ function action(mode, type, selection) {
                 matQty = matQtySet[selectedItem];
                 cost = costSet[selectedItem];
             } else if (selectedType == 2) { //special refine
-                var itemSet = [4011001, 1];
-                var matSet = [4000039, 1];
-                var matQtySet = [100, 1];
-                var costSet = [1000, 1]
+                var itemSet = [4011001];
+                var matSet = [4000039];
+                var matQtySet = [100];
+                var costSet = [1000]
                 item = itemSet[0];
                 mats = matSet[0];
                 matQty = matQtySet[0];
@@ -120,7 +120,12 @@ function action(mode, type, selection) {
                 selectedItem = selection;
                 qty = 1;
             } else {
-                qty = (selection > 0) ? selection : (selection < 0 ? -selection : 1);
+                if (!Number.isInteger(selection) || selection < 1 || selection > 100) {
+                cm.sendOk("Please choose a whole number from 1 to 100.");
+                cm.dispose();
+                return;
+            }
+            qty = selection;
             }
 
             last_use = false;

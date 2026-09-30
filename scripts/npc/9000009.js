@@ -26,6 +26,10 @@
 */
 
 function start() {
-    cm.sendOk("Hey hey!!! Find the Treasure Scroll! I lost the map\r\nsomewhere and I can't leave without it.");
+    if (Java.type("server.events.gm.GmEventService").getInstance().claimReward(cm.getPlayer())) {
+        cm.sendOk("Thank you for finding my treasure! Here is your Scroll of Secrets.");
+    } else {
+        cm.sendOk("Complete a managed Treasure Hunt and collect a Treasure Scroll to earn a prize. If you already qualified, make room in your USE inventory and speak to me again.");
+    }
     cm.dispose();
 }

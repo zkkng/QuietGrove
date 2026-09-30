@@ -140,6 +140,17 @@
     </imgdir>
   </imgdir>
   <imgdir name="life">
+    <imgdir name="30">
+      <string name="type" value="n"/>
+      <string name="id" value="9201082"/>
+      <int name="x" value="2170"/>
+      <int name="y" value="334"/>
+      <int name="f" value="0"/>
+      <int name="fh" value="124"/>
+      <int name="cy" value="334"/>
+      <int name="rx0" value="2120"/>
+      <int name="rx1" value="2220"/>
+    </imgdir>
     <imgdir name="2">
       <string name="type" value="n"/>
       <string name="id" value="1012000"/>

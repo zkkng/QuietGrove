@@ -23,6 +23,9 @@ package net.server.channel.handlers;
 
 import client.Client;
 import net.packet.InPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import server.trainer.TrainerBotReactions;
 import tools.PacketCreator;
 import tools.exceptions.EmptyMovementException;
 
@@ -31,6 +34,7 @@ import static soloMapling.ArtificialPlayer.BotMovementSystem.InPacketReader.reco
 import static soloMapling.ArtificialPlayer.BotMovementSystem.InPacketReader.getMoveDataRecording;
 
 public final class MovePlayerHandler extends AbstractMovementPacketHandler {
+    private static final Logger log = LoggerFactory.getLogger(MovePlayerHandler.class);
     @Override
     public final void handlePacket(InPacket p, Client c) {
         if (getMoveDataRecording()) {
@@ -44,6 +48,16 @@ public final class MovePlayerHandler extends AbstractMovementPacketHandler {
             p.seek(movementDataStart);
 
             c.getPlayer().getMap().movePlayer(c.getPlayer(), c.getPlayer().getPosition());
+            try {
+                TrainerBotReactions.onAcceptedMovement(c.getPlayer(), c.getPlayer().getMap(), parseMovement(p));
+            } catch (EmptyMovementException ignored) {
+                // Unsupported/relative-only observation must never interfere with movement delivery.
+                TrainerBotReactions.onAcceptedMovement(c.getPlayer(), c.getPlayer().getMap(), null);
+            } catch (RuntimeException reactionFailure) {
+                log.warn("Bot movement observation failed character={}", c.getPlayer().getName(), reactionFailure);
+            } finally {
+                p.seek(movementDataStart);
+            }
 
             if (c.getPlayer().isHidden()) {
                 c.getPlayer().getMap().broadcastGMMessage(c.getPlayer(), PacketCreator.movePlayer(c.getPlayer().getId(), p, movementDataLength), false);

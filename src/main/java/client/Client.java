@@ -1468,9 +1468,17 @@ public class Client extends ChannelInboundHandlerAdapter {
     }
 
     public void sendPacket(Packet packet) {
+        var eventTelemetry=server.events.gm.EventInstrumentation.forActor(player);
+        if(player!=null && soloMapling.ArtificialPlayer.BotHelpers.isBot(player)) eventTelemetry=null;
+        final var measured=eventTelemetry;
+        long ticket=measured==null?0:measured.sending(player.getId(),packet.size());
         announcerLock.lock();
         try {
-            ioChannel.writeAndFlush(packet);
+            var write=ioChannel.writeAndFlush(packet);
+            if(measured!=null) write.addListener(done->measured.sent(ticket,done.isSuccess()));
+        } catch(RuntimeException failure) {
+            if(measured!=null) measured.sent(ticket,false);
+            throw failure;
         } finally {
             announcerLock.unlock();
         }

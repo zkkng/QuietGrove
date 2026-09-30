@@ -80,6 +80,20 @@ public enum ItemFactory {
         saveItems(items, null, id, con);
     }
 
+    /** Caller holds the Character monitor and this inventory's lock until its transaction commits. */
+    public void saveInventoryType(List<Item> items, InventoryType type, int id, Connection con)
+            throws SQLException {
+        if (this != INVENTORY || type == null || type.getType() < 1 || type.getType() > 5)
+            throw new IllegalArgumentException("character inventory type");
+        List<Pair<Item, InventoryType>> snapshot = new ArrayList<>();
+        for (Item item : items) {
+            if (item.getInventoryType() != type || item.getPosition() <= 0)
+                throw new IllegalArgumentException("inventory snapshot item");
+            snapshot.add(new Pair<>(item, type));
+        }
+        saveItemsCommon(snapshot, id, con, type);
+    }
+
     public void saveItems(List<Pair<Item, InventoryType>> items, List<Short> bundlesList, int id, Connection con) throws SQLException {
         // thanks Arufonsu, MedicOP, BHB for pointing a "synchronized" bottleneck here
 
@@ -195,16 +209,23 @@ public enum ItemFactory {
     }
 
     private void saveItemsCommon(List<Pair<Item, InventoryType>> items, int id, Connection con) throws SQLException {
+        saveItemsCommon(items, id, con, null);
+    }
+
+    private void saveItemsCommon(List<Pair<Item, InventoryType>> items, int id, Connection con,
+                                  InventoryType onlyType) throws SQLException {
         Lock lock = locks[id % lockCount];
         lock.lock();
         try {
             StringBuilder query = new StringBuilder();
             query.append("DELETE `inventoryitems`, `inventoryequipment` FROM `inventoryitems` LEFT JOIN `inventoryequipment` USING(`inventoryitemid`) WHERE `type` = ? AND `");
             query.append(account ? "accountid" : "characterid").append("` = ?");
+            if (onlyType != null) query.append(" AND `inventorytype` = ?");
 
             try (PreparedStatement ps = con.prepareStatement(query.toString())) {
                 ps.setInt(1, value);
                 ps.setInt(2, id);
+                if (onlyType != null) ps.setInt(3, onlyType.getType());
                 ps.executeUpdate();
             }
 

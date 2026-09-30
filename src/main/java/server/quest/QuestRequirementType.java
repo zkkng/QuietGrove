@@ -49,7 +49,13 @@ public enum QuestRequirementType {
     DAY_BY_DAY(20),
     MESO(21),
     BUFF(22),
-    EXCEPT_BUFF(23);
+    EXCEPT_BUFF(23),
+    FAME(24),
+    SKILL(25),
+    PET_RECALL(26),
+    PET_AUTO_SPEAK(27),
+    MONSTER_BOOK_CARDS(28),
+    PARTY_QUEST_RANK(29);
 
     final byte type;
 
@@ -69,6 +75,9 @@ public enum QuestRequirementType {
             return QUEST;
         case "item":
             return ITEM;
+        case "skill":
+            return SKILL;
+        case "level":
         case "lvmin":
             return MIN_LEVEL;
         case "lvmax":
@@ -89,8 +98,14 @@ public enum QuestRequirementType {
             return SCRIPT;
         case "pet":
             return PET;
+        case "petRecallLimit":
+            return PET_RECALL;
+        case "petAutoSpeakingLimit":
+            return PET_AUTO_SPEAK;
         case "pettamenessmin":
             return MIN_PET_TAMENESS;
+        case "mbcard": return MONSTER_BOOK_CARDS;
+        case "partyQuest_S": return PARTY_QUEST_RANK;
         case "mbmin":
             return MONSTER_BOOK;
         case "normalAutoStart":
@@ -107,6 +122,9 @@ public enum QuestRequirementType {
             return END;*/
         case "daybyday":
             return DAY_BY_DAY;
+        case "pop":
+            return FAME;
+        case "endmeso":
         case "money":
             return MESO;
         case "buff":

@@ -26,10 +26,15 @@ import client.Client;
 import client.inventory.Pet;
 import net.AbstractPacketHandler;
 import net.packet.InPacket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import server.maps.MapItem;
+import server.maps.MapleMap;
 import server.maps.MapObject;
+import server.trainer.TrainerBotReactions;
 import tools.PacketCreator;
 
+import java.awt.Point;
 import java.util.Set;
 
 /**
@@ -37,6 +42,7 @@ import java.util.Set;
  * @author Ronan
  */
 public final class PetLootHandler extends AbstractPacketHandler {
+    private static final Logger log = LoggerFactory.getLogger(PetLootHandler.class);
     @Override
     public final void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
@@ -50,7 +56,8 @@ public final class PetLootHandler extends AbstractPacketHandler {
 
         p.skip(13);
         int oid = p.readInt();
-        MapObject ob = chr.getMap().getMapObject(oid);
+        MapleMap pickupMap = chr.getMap();
+        MapObject ob = pickupMap.getMapObject(oid);
         try {
             MapItem mapitem = (MapItem) ob;
             if (mapitem.getMeso() > 0) {
@@ -81,7 +88,22 @@ public final class PetLootHandler extends AbstractPacketHandler {
                 }
             }
 
-            chr.pickupItem(ob, petIndex);
+            Point dropPosition = new Point(mapitem.getPosition());
+            boolean committed;
+            mapitem.lockItem();
+            try {
+                boolean alreadyPickedUp = mapitem.isPickedUp();
+                chr.pickupItem(ob, petIndex);
+                committed = !alreadyPickedUp && mapitem.isPickedUp()
+                        && mapitem.getCollectedByCharacterId() == chr.getId();
+            } finally { mapitem.unlockItem(); }
+            if (committed) {
+                try { TrainerBotReactions.onCommittedPickup(chr, pickupMap, mapitem, dropPosition, true); }
+                catch (RuntimeException reactionFailure) {
+                    log.warn("Bot reaction failed after pet pickup character={} item={}",
+                            chr.getName(), mapitem.getItemId(), reactionFailure);
+                }
+            }
         } catch (NullPointerException | ClassCastException e) {
             c.sendPacket(PacketCreator.enableActions());
         }

@@ -39,6 +39,20 @@ import java.util.Map;
  * world drop rates.
  */
 public final class BotAttackEffects {
+    private record Authority(Character actor, long generation) {}
+    private static final ThreadLocal<Authority> authority = new ThreadLocal<>();
+    /** Keep the accepted generation through effects even if cancellation removes its lease. */
+    public static boolean withAuthority(Character bot, long generation, java.util.function.BooleanSupplier action) {
+        Authority previous = authority.get();
+        authority.set(new Authority(bot,generation));
+        try { return action.getAsBoolean(); }
+        finally { if (previous == null) authority.remove(); else authority.set(previous); }
+    }
+    public static boolean authorityValid(Character bot) {
+        Authority expected = authority.get();
+        return expected == null || expected.actor() == bot && expected.generation() > 0
+                && soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.combatAllowed(bot,expected.generation());
+    }
 
     private BotAttackEffects() {}
 
@@ -63,7 +77,7 @@ public final class BotAttackEffects {
         }
         Packet packet = PacketCreator.closeRangeAttack(bot, skillId, skillLevel, facingMask,
                 numAttackedAndDamage(hits), toTargets(hits, hitDelay), speed, bodyActionId, 0);
-        return broadcastAndApply(bot, packet, hits, hitDelay);
+        return broadcastAndApply(bot, packet, hits, hitDelay, false);
     }
 
     /* Ranged version (bow/crossbow/gun/claw): like melee, plus the flying projectile. */
@@ -75,7 +89,7 @@ public final class BotAttackEffects {
         }
         Packet packet = PacketCreator.rangedAttack(bot, skillId, skillLevel, facingMask,
                 numAttackedAndDamage(hits), projectile, toTargets(hits, hitDelay), speed, bodyActionId, 0);
-        return broadcastAndApply(bot, packet, hits, hitDelay);
+        return broadcastAndApply(bot, packet, hits, hitDelay, false);
     }
 
     /*
@@ -91,11 +105,11 @@ public final class BotAttackEffects {
         Packet packet = PacketCreator.magicAttack(bot, skillId, skillLevel, facingMask,
                 numAttackedAndDamage(hits), toTargets(hits, hitDelay),
                 BotAttackData.magicChargeFor(skillId), speed, bodyActionId, 0);
-        return broadcastAndApply(bot, packet, hits, hitDelay);
+        return broadcastAndApply(bot, packet, hits, hitDelay, true);
     }
 
     private static boolean notReady(Character bot, Map<Monster, List<Integer>> hits) {
-        return bot == null || bot.getMap() == null || hits == null || hits.isEmpty();
+        return bot == null || bot.getMap() == null || hits == null || hits.isEmpty() || !authorityValid(bot);
     }
 
     /* numAttacked (mobs, high nibble) | numDamage (lines per mob, low nibble). */
@@ -115,16 +129,27 @@ public final class BotAttackEffects {
 
     /* Broadcast once, then apply each mob's summed damage + loot. True if any mob died. */
     private static boolean broadcastAndApply(Character bot, Packet packet,
-                                             Map<Monster, List<Integer>> hits, short hitDelay) {
+                                             Map<Monster, List<Integer>> hits, short hitDelay, boolean magic) {
+        var lease = soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared().task(bot.getId()).orElse(null);
+        long incidentGeneration = soloMapling.ArtificialPlayer.CompanionSystem.CompanionMonsterAttacks.generation(bot);
+        if (lease == null && incidentGeneration > 0 && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.combatAllowed(bot,incidentGeneration)) return false;
+        if (lease != null && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.combatAllowed(bot, lease.generation())) return false;
         bot.getMap().broadcastMessage(bot, packet, /* repeatToSource */ false);
+        if (soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.get().active(bot))
+            soloMapling.ArtificialPlayer.CompanionSystem.BossTelemetry.packet(packet.getBytes().length);
         GCMovement.markAlerted(bot); // hold the 5s ALERT pose so the bot's own idle/move broadcasts don't cancel it
         boolean anyKilled = false;
         for (Map.Entry<Monster, List<Integer>> hit : hits.entrySet()) {
+            if (!authorityValid(bot)) break;
+            if (lease == null && incidentGeneration > 0 && (!soloMapling.ArtificialPlayer.CompanionSystem.BossMonsterController.combatAllowed(bot,incidentGeneration)
+                    || !soloMapling.ArtificialPlayer.CompanionSystem.BossMonsterController.targetAllowed(bot,hit.getKey()))) break;
+            if (lease != null && (!soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.combatAllowed(bot, lease.generation())
+                    || hit.getKey().getMap() != bot.getMap() || !hit.getKey().isAlive())) break;
             int total = 0;
             for (int line : hit.getValue()) {
                 total += BotAttackData.decodeDamageLine(line); // crit lines arrive negative-encoded
             }
-            if (applyDamageAndLoot(bot, hit.getKey(), total, hitDelay)) {
+            if (applyDamageAndLoot(bot, hit.getKey(), total, hitDelay, magic)) {
                 anyKilled = true;
             }
         }
@@ -132,8 +157,17 @@ public final class BotAttackEffects {
     }
 
     /* Apply HP damage; on death, credit EXP + the death broadcast (no vanilla drops) and spawn our own loot. */
-    private static boolean applyDamageAndLoot(Character bot, Monster target, int damage, short hitDelay) {
+    private static boolean applyDamageAndLoot(Character bot, Monster target, int damage, short hitDelay, boolean magic) {
         MapleMap map = bot.getMap();
+        if (soloMapling.ArtificialPlayer.CompanionSystem.BossRegistry.catalogMonster(target.getId())
+                && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) return false;
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) {
+            if (target.isFake() || !soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.get().targetAllowed(bot,target)) return false;
+            if (damage > 0 && resolveProtection(bot,target,magic)) return false;
+            boolean alive = target.isAlive();
+            map.damageMonster(bot,target,damage,hitDelay); // One ordinary quest/EXP/drop owner and phase rules.
+            return alive && !target.isAlive();
+        }
 
         boolean killed = target.damage(bot, damage, false); // register damage; false = allow death
         if (killed) {
@@ -147,6 +181,23 @@ public final class BotAttackEffects {
             // abandons expires via the normal map item lifetime. See TrainingBot loot handling + DropCommands.
         }
         return killed;
+    }
+    /** Resolve current monster protection at effect time, including a buff acquired after the roll. */
+    public static boolean resolveProtection(Character bot,Monster target,boolean magic) {
+        var reflected=magic?client.status.MonsterStatus.MAGIC_REFLECT:client.status.MonsterStatus.WEAPON_REFLECT;
+        var immunity=magic?client.status.MonsterStatus.MAGIC_IMMUNITY:client.status.MonsterStatus.WEAPON_IMMUNITY;
+        if(target.isBuffed(reflected)) {
+            var status=target.getStati(reflected);
+            var skill=status==null?null:status.getMobSkill();
+            if(skill!=null && authorityValid(bot) && bot.isAlive() && bot.getMap()==target.getMap()) {
+                int counter=Math.max(0,magic && skill.getType()==server.life.MobSkillType.PHYSICAL_AND_MAGIC_COUNTER ? skill.getY():skill.getX());
+                bot.addHP(-counter); // Canonical reflection bypasses Magic Guard and contact i-frames.
+                soloMapling.ArtificialPlayer.CompanionSystem.BossCombatEvidence.incoming(bot,counter);
+                bot.getMap().broadcastMessage(bot,PacketCreator.damagePlayer(0,target.getId(),bot.getId(),counter,0,0,false,0,true,target.getObjectId(),0,0),true);
+            }
+            return true;
+        }
+        return target.isBuffed(immunity);
     }
 
     /*

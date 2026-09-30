@@ -62,6 +62,14 @@ public class MessageQueue {
     }
 
     public void addMessage(QueueType queueType, ChatMessage message) {
+        if (queueType == QueueType.PRIMARY && message != null) {
+            try {
+                if (server.trainer.SocialStakeGame.onPublicChat(message.getSender(), message.getContent())) return;
+            }
+            catch (RuntimeException failure) {
+                log("Social stake invitation failed without affecting chat: " + failure.getMessage());
+            }
+        }
         queues.get(queueType).add(message);
     }
 

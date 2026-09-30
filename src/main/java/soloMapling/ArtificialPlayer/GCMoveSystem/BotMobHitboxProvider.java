@@ -25,9 +25,9 @@ import static soloMapling.ArtificialPlayer.GCMoveSystem.BotWzXml.getIntValue;
 // Loads a mob's body hitbox (lt/rb bounds) from its WZ Mob/%07d.img.xml and maps it to world
 // coordinates around the mob's position (mirrored when facing left). One rectangle is cached per
 // distinct mob id - bounded by monster species, not by mob/bot count - and the cache is cleared if
-// the WZ root path changes. Used by the bot contact-damage overlap check.
+// the WZ root path changes. Used by contact damage and companion attack/engagement geometry.
 // Extracted from GreenCatMS and converted from a getInstance() singleton to all-static. Credit: NutNNut.
-final class BotMobHitboxProvider {
+public final class BotMobHitboxProvider {
     private static final Logger log = LoggerFactory.getLogger(BotMobHitboxProvider.class);
 
     // Sentinel stored when a mob has no usable hitbox frame, so we don't re-parse/re-log every tick
@@ -44,7 +44,7 @@ final class BotMobHitboxProvider {
     private BotMobHitboxProvider() {
     }
 
-    static Rectangle getMobBounds(Monster mob) {
+    public static Rectangle getMobBounds(Monster mob) {
         if (mob == null) {
             return null;
         }
@@ -52,7 +52,7 @@ final class BotMobHitboxProvider {
         return getMobBounds(mob.getId(), mob.getPosition(), mob.isFacingLeft());
     }
 
-    static Rectangle getMobBounds(int mobId, Point position, boolean facingLeft) {
+    public static Rectangle getMobBounds(int mobId, Point position, boolean facingLeft) {
         ensureCurrentMobRoot();
         Rectangle modelBounds = boundsByMobId.computeIfAbsent(mobId, BotMobHitboxProvider::loadMobBounds);
         if (modelBounds == UNRESOLVED_BOUNDS) {

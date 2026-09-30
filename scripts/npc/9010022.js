@@ -41,19 +41,18 @@ function action(mode, type, selection) {
                     selStr += "#3# Monster Carnival 2";
                 }
 
-                /*
-                if (cm.getLevel() >= 40) { NOT IMPLEMENTED
-                    selStr += "#5# Nett's Pyramid"; 
-                } 
-
-                if (cm.getLevel() >= 25 && cm.getLevel() <= 30) { NOT IMPLEMENTED
-                    selStr += "#6# Construction Site"; 
-                } 
-                */
+                if (cm.getLevel() >= 40) {
+                    selStr += "#5# Nett's Pyramid";
+                }
+                if (cm.getLevel() >= 25) {
+                    selStr += "#6# Construction Site";
+                }
 
                 cm.sendDimensionalMirror(selStr);
             }
         } else if (status == 1) {
+            status = 2;
+            if ((selection == 5 && cm.getLevel() < 40) || (selection == 6 && cm.getLevel() < 25)) { cm.dispose(); return; }
             cm.getPlayer().saveLocation("MIRROR");
             switch (selection) {
                 case 0:

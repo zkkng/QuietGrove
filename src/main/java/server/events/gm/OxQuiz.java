@@ -1,108 +1,116 @@
-/*
-	This file is part of the OdinMS Maple Story Server
-    Copyright (C) 2008 Patrick Huy <patrick.huy@frz.cc>
-		       Matthias Butz <matze@odinms.de>
-		       Jan Christian Meyer <vimes@odinms.de>
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation version 3 as published by
-    the Free Software Foundation. You may not use, modify or distribute
-    this program under any other version of the GNU Affero General Public
-    License.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Affero General Public License for more details.
-
-    You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+/* OX packet/position behavior originates from OdinMS (AGPL-3.0), author FloppyDisk. */
 package server.events.gm;
 
 import client.Character;
-import provider.DataProvider;
+import provider.Data;
 import provider.DataProviderFactory;
 import provider.DataTool;
 import provider.wz.WZFiles;
 import server.TimerManager;
 import server.maps.MapleMap;
 import tools.PacketCreator;
-import tools.Randomizer;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ScheduledFuture;
+import java.util.function.BooleanSupplier;
+import java.util.function.IntConsumer;
+import java.util.function.IntPredicate;
 
-/**
- * @author FloppyDisk
- */
+/** Finite, cancellable OX rounds. Human and eventual bot adapters share these authoritative rules. */
 public final class OxQuiz {
-    private int round = 1;
-    private int question = 1;
-    private MapleMap map = null;
-    private final int expGain = 200;
-    private static final DataProvider stringData = DataProviderFactory.getDataProvider(WZFiles.ETC);
+    public record Question(int group,int key,int answer) {}
+    private final MapleMap map;
+    private final List<Question> questions;
+    private final BooleanSupplier valid;
+    private final IntPredicate participant;
+    private final IntConsumer eliminate;
+    private final Runnable finish;
+    private volatile boolean cancelled;
+    private volatile ScheduledFuture<?> timer;
+    private long startedAtMs;
+    private volatile long lastDriftMs, maxDriftMs;
+    private int index;
+    private long roundGeneration;
+    private boolean resolving;
 
+    /** Compatibility constructor: unregistered characters never acquire prizes from map presence. */
     public OxQuiz(MapleMap map) {
-        this.map = map;
-        this.round = Randomizer.nextInt(9);
-        this.question = 1;
+        this(map,loadQuestions(),10,System.nanoTime(),
+                () -> map.getOx()!=null && map.isOxQuiz(), id -> false,id -> {},
+                () -> { map.setOx(null); map.setOxQuiz(false); map.setEventStarted(false); });
     }
-
-    private boolean isCorrectAnswer(Character chr, int answer) {
-        double x = chr.getPosition().getX();
-        double y = chr.getPosition().getY();
-        if ((x > -234 && y > -26 && answer == 0) || (x < -234 && y > -26 && answer == 1)) {
-            chr.dropMessage("Correct!");
-            return true;
+    public OxQuiz(MapleMap map,List<Question> catalog,int rounds,long seed,BooleanSupplier valid,
+                  IntPredicate participant,IntConsumer eliminate,Runnable finish) {
+        if(map==null || rounds<1 || rounds>catalog.size()) throw new IllegalArgumentException("OX catalog/rounds");
+        this.map=map; this.valid=valid; this.participant=participant; this.eliminate=eliminate; this.finish=finish;
+        List<Question> selected=new ArrayList<>(catalog);
+        Collections.shuffle(selected,new Random(seed));
+        questions=List.copyOf(selected.subList(0,rounds));
+    }
+    public static List<Question> loadQuestions() {
+        Data data=DataProviderFactory.getDataProvider(WZFiles.ETC).getData("OXQuiz.img");
+        List<Question> questions=new ArrayList<>();
+        for(Data group:data.getChildren()) for(Data question:group.getChildren()) {
+            try {
+                int groupId=Integer.parseInt(group.getName()),key=Integer.parseInt(question.getName());
+                int answer=DataTool.getInt(question.getChildByPath("a"));
+                if(groupId>0 && key>0 && (answer==0 || answer==1)
+                        && question.getChildByPath("q")!=null) questions.add(new Question(groupId,key,answer));
+            } catch(RuntimeException invalid) { /* malformed keys are unavailable, never guessed */ }
         }
-        return false;
+        return List.copyOf(questions);
     }
-
+    public static boolean correct(double x,double y,int answer) {
+        return y>-26 && ((answer==0 && x>-234) || (answer==1 && x<-234));
+    }
     public void sendQuestion() {
-        int gm = 0;
-        for (Character mc : map.getCharacters()) {
-            if (mc.gmLevel() > 1) {
-                gm++;
+        if(map.getOx()!=this || !valid.getAsBoolean()) return;
+        Question question;long generation;boolean done;
+        synchronized(this) {
+            if(cancelled || resolving) return;
+            done=index==questions.size();
+            if(done) {cancelled=true;question=null;generation=0;}
+            else {
+                if(startedAtMs==0) startedAtMs=System.currentTimeMillis();
+                question=questions.get(index);generation=++roundGeneration;
             }
         }
-        final int number = gm;
-        map.broadcastMessage(PacketCreator.showOXQuiz(round, question, true));
-        TimerManager.getInstance().schedule(() -> {
-            map.broadcastMessage(PacketCreator.showOXQuiz(round, question, true));
-            List<Character> chars = new ArrayList<>(map.getCharacters());
-
-            for (Character chr : chars) {
-                if (chr != null) // make sure they aren't null... maybe something can happen in 12 seconds.
-                {
-                    if (!isCorrectAnswer(chr, getOXAnswer(round, question)) && !chr.isGM()) {
-                        chr.changeMap(chr.getMap().getReturnMap());
-                    } else {
-                        chr.gainExp(expGain, true, true);
-                    }
-                }
-            }
-            //do question
-            if ((round == 1 && question == 29) || ((round == 2 || round == 3) && question == 17) || ((round == 4 || round == 8) && question == 12) || (round == 5 && question == 26) || (round == 9 && question == 44) || ((round == 6 || round == 7) && question == 16)) {
-                question = 100;
-            } else {
-                question++;
-            }
-            //send question
-            if (map.getCharacters().size() - number <= 2) {
-                map.broadcastMessage(PacketCreator.serverNotice(6, "The event has ended"));
-                map.getPortal("join00").setPortalStatus(true);
-                map.setOx(null);
-                map.setOxQuiz(false);
-                //prizes here
-                return;
-            }
-            sendQuestion();
-        }, 30000); // Time to answer = 30 seconds ( Ox Quiz packet shows a 30 second timer.
+        if(done) {finish.run();return;}
+        map.broadcastMessage(PacketCreator.showOXQuiz(question.group(),question.key(),true));
+        long deadline=startedAtMs+(index+1)*30_000L;
+        timer=TimerManager.getInstance().schedule(() -> resolve(question,deadline,generation),
+                Math.max(1,deadline-System.currentTimeMillis()));
+        if(cancelled && timer!=null) timer.cancel(false);
     }
-
-    private static int getOXAnswer(int imgdir, int id) {
-        return DataTool.getInt(stringData.getData("OXQuiz.img").getChildByPath("" + imgdir + "").getChildByPath("" + id + "").getChildByPath("a"));
+    private void resolve(Question question,long deadline,long generation) {
+        if(cancelled || map.getOx()!=this || !valid.getAsBoolean()) return;
+        synchronized(this) {
+            if(cancelled || resolving || generation!=roundGeneration) return;
+            resolving=true;roundGeneration++;
+        }
+        try {
+        lastDriftMs=Math.max(0,System.currentTimeMillis()-deadline);
+        maxDriftMs=Math.max(maxDriftMs,lastDriftMs);
+        map.broadcastMessage(PacketCreator.showOXQuiz(question.group(),question.key(),false));
+        for(Character actor:new ArrayList<>(map.getCharacters())) {
+            if(cancelled || !valid.getAsBoolean()) return;
+            if(actor==null || actor.getMap()!=map || !participant.test(actor.getId())) continue;
+            if(!actor.isAlive() || actor.isGM() || !correct(actor.getPosition().x,actor.getPosition().y,question.answer()))
+                eliminate.accept(actor.getId());
+            else actor.gainExp(200,true,true);
+        }
+        synchronized(this) {index++;}
+        } finally {synchronized(this) {resolving=false;}}
+        sendQuestion();
     }
+    public void cancel() { synchronized(this) {cancelled=true;roundGeneration++;} if(timer!=null) timer.cancel(false); }
+    public int completedRounds() { return index; }
+    /** Public question identity only. Bot decisions never receive the answer value. */
+    public int publicRound() { return cancelled?-1:questions.get(Math.min(index,questions.size()-1)).group()*10000+questions.get(Math.min(index,questions.size()-1)).key(); }
+    public List<Question> selectedQuestions() { return questions; }
+    public long lastDriftMs() { return lastDriftMs; }
+    public long maxDriftMs() { return maxDriftMs; }
 }

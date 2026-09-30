@@ -27,9 +27,11 @@
 */
 var status = 0;
 var beauty = 0;
+var finished = false;
 var mhair_v = Array(30000, 30020, 30110, 30120, 30270, 30290, 30310, 30670, 30840);
 var fhair_v = Array(31010, 31050, 31110, 31120, 31240, 31250, 31280, 31670, 31810);
 var hairnew = Array();
+var haircolor = Array();
 
 function pushIfItemExists(array, itemid) {
     if ((itemid = cm.getCosmeticItem(itemid)) != -1 && !cm.isCosmeticEquipped(itemid)) {
@@ -42,11 +44,12 @@ function start() {
 }
 
 function action(mode, type, selection) {
-    if (mode < 1) {
+    if (finished || mode != 1 || status == 0 && selection != 1 && selection != 2) {
+        finished = true;
         cm.dispose();
     } else {
         status++;
-        if (selection == 1) {
+        if (status == 1 && selection == 1) {
             beauty = 1;
             hairnew = Array();
             if (cm.getPlayer().getGender() == 0) {
@@ -59,7 +62,7 @@ function action(mode, type, selection) {
                 }
             }
             cm.sendStyle("I can completely change the look of your hair. Aren't you ready for a change? With #b#t5150033##k, I'll take care of the rest for you. Choose the style of your liking!", hairnew);
-        } else if (selection == 2) {
+        } else if (status == 1 && selection == 2) {
             beauty = 2;
             haircolor = Array();
             var current = parseInt(cm.getPlayer().getHair() / 10) * 10;
@@ -68,6 +71,14 @@ function action(mode, type, selection) {
             }
             cm.sendStyle("I can completely change the look of your hair. Aren't you ready for a change? With #b#t5151028##k, I'll take care of the rest. Choose the color of your liking!", haircolor);
         } else if (status == 2) {
+            finished = true;
+            var options = beauty == 1 ? hairnew : haircolor;
+            if (options.length == 0 || !Number.isInteger(selection) || selection < 0 || selection >= options.length) {
+                cm.sendOk("Please choose an available style or color.");
+                cm.dispose();
+                return;
+            }
+
             if (beauty == 1) {
                 if (cm.haveItem(5150033)) {
                     cm.gainItem(5150033, -1);

@@ -78,7 +78,16 @@ public class MobSkillFactory {
                 return Optional.of(existingMs);
             }
 
-            Data skillData = skillRoot.getChildByPath("%d/level/%d".formatted(type.getId(), level));
+            Optional<MobSkill> loaded = loadMobSkill(type,level,skillRoot);
+            loaded.ifPresent(skill -> mobSkills.put(createKey(type,level),skill));
+            return loaded;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+    /** Parse an explicit source without installing it in the process-wide WZ cache. */
+    static Optional<MobSkill> loadMobSkill(MobSkillType type, int level, Data root) {
+            Data skillData = root.getChildByPath("%d/level/%d".formatted(type.getId(), level));
             if (skillData == null) {
                 return Optional.empty();
             }
@@ -99,7 +108,7 @@ public class MobSkillFactory {
             long duration = SECONDS.toMillis(DataTool.getInt("time", skillData, 0));
             long cooltime = SECONDS.toMillis(DataTool.getInt("interval", skillData, 0));
             int iprop = DataTool.getInt("prop", skillData, 100);
-            float prop = iprop / 100;
+            float prop = iprop / 100.0f;
             int limit = DataTool.getInt("limit", skillData, 0);
 
             Data ltData = skillData.getChildByPath("lt");
@@ -126,11 +135,7 @@ public class MobSkillFactory {
                     .rb(rb)
                     .build();
 
-            mobSkills.put(createKey(type, level), loadedMobSkill);
             return Optional.of(loadedMobSkill);
-        } finally {
-            writeLock.unlock();
-        }
     }
 
     private static String createKey(MobSkillType type, int skillLevel) {

@@ -52,7 +52,8 @@ public final class GCMovement {
                 st.fhIndex = BotMovementManager.buildFhIndex(bot.getMap());
                 Point cur = bot.getPosition();
                 Point ground = BotPhysicsEngine.findGroundPoint(bot.getMap(), new Point(cur.x, cur.y - 1));
-                BotPhysicsEngine.teleportTo(st, bot, ground != null ? ground : cur);
+                if(server.events.gm.EventBotRuntime.physical(bot)) BotPhysicsEngine.beginPortalDrop(st,bot,cur);
+                else BotPhysicsEngine.teleportTo(st, bot, ground != null ? ground : cur);
                 BotMovementManager.resetEntryStateAfterTeleport(st);
                 BotNavigationGraphProvider.warmGraphAsync(bot.getMap(), st.movementProfile);
             }

@@ -2,6 +2,7 @@ package soloMapling.ArtificialPlayer.BotTypes;
 
 import client.Character;
 import client.Job;
+import config.YamlConfig;
 import client.inventory.BodyPart;
 import client.inventory.Equip;
 import client.inventory.Item;
@@ -122,6 +123,10 @@ public class TutorialBot extends BotSM {
 
     @Override
     public void updateState() {
+        // Also covers a tutorial bot manually created through GM tooling.
+        if (!YamlConfig.config.server.ENABLE_DEMO_TUTORIAL) {
+            return;
+        }
         super.updateState();
         if (checkIfNotRunningOrPaused()) {
             return;

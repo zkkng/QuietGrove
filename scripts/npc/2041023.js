@@ -51,7 +51,9 @@ function action(mode, type, selection) {
         }
 
         if (status == 0) {
-            if (!(cm.isQuestCompleted(6316) && (cm.isQuestStarted(6225) || cm.isQuestStarted(6315)))) {
+            var hasFirePoisonKey = cm.isQuestStarted(6225) && cm.isQuestCompleted(6226);
+            var hasIceLightningKey = cm.isQuestStarted(6315) && cm.isQuestCompleted(6316);
+            if (!(hasFirePoisonKey || hasIceLightningKey)) {
                 cm.sendOk("You seems to have no reason to meet element-based Thanatos.");
                 cm.dispose();
                 return;

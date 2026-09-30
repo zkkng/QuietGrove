@@ -21,6 +21,11 @@ public class RaiseUIStateHandler extends AbstractPacketHandler {
         if (c.tryacquireClient()) {
             try {
                 Character chr = c.getPlayer();
+                if (infoNumber == server.content.MarketEgg.INFO) {
+                    if (server.content.MarketEgg.owns(chr)) server.content.MarketEgg.sync(chr);
+                    c.sendPacket(tools.PacketCreator.enableActions());
+                    return;
+                }
                 Quest quest = Quest.getInstanceFromInfoNumber(infoNumber);
                 QuestStatus mqs = chr.getQuest(quest);
 

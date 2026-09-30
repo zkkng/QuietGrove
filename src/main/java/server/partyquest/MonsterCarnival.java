@@ -355,16 +355,25 @@ public class MonsterCarnival {
         effectTimer = TimerManager.getInstance().schedule(() -> complete(), SECONDS.toMillis(map.getTimeExpand() - 10)); // thanks Vcoc for noticing a time set issue here
     }
 
-    public void complete() {
+    private boolean medalResultRecorded;
+
+    public synchronized void complete() {
+        if (medalResultRecorded) return;
+        medalResultRecorded = true;
         int cp1 = this.redTotalCP;
         int cp2 = this.blueTotalCP;
 
         this.redTimeupCP = cp1;
         this.blueTimeupCP = cp2;
 
-        if (cp1 == cp2) {
-            return;
+        if (!cpq1) {
+            for (Character participant : map.getAllPlayers()) {
+                if (participant.getMonsterCarnival() == this) {
+                    server.content.RankingMedals.carnival(participant, cp1 != cp2 && (participant.getTeam() == 0 ? cp1 > cp2 : cp2 > cp1));
+                }
+            }
         }
+        if (cp1 == cp2) return;
         boolean redWin = cp1 > cp2;
         int chnl = leader1.getClient().getChannel();
         int chnl1 = leader2.getClient().getChannel();

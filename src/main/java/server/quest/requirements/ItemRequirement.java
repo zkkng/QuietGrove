@@ -72,6 +72,7 @@ public class ItemRequirement extends AbstractQuestRequirement {
             for (Item item : chr.getInventory(iType).listById(itemId)) {
                 count += item.getQuantity();
             }
+            if (ItemConstants.isMedal(itemId)) count += chr.getInventory(InventoryType.EQUIPPED).countById(itemId);
             //Weird stuff, nexon made some quests only available when wearing gm clothes. This enables us to accept it ><
             if (iType.equals(InventoryType.EQUIP) && !ItemConstants.isMedal(itemId)) {
                 if (chr.isGM()) {

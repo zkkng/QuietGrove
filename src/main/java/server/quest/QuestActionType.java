@@ -53,6 +53,8 @@ public enum QuestActionType {
 
     public static QuestActionType getByWZName(String name) {
         switch (name) {
+        case "quest":
+            return QUEST;
         case "exp":
             return EXP;
         case "money":

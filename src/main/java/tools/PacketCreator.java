@@ -299,7 +299,9 @@ public class PacketCreator {
 
     private static void addCharEquips(final OutPacket p, Character chr) {
         Inventory equip = chr.getInventory(InventoryType.EQUIPPED);
-        Collection<Item> ii = ItemInformationProvider.getInstance().canWearEquipment(chr, equip.list());
+        var hostCostume=server.events.gm.GmHostPresentation.equipment(chr);
+        Collection<Item> ii = hostCostume!=null ? hostCostume
+                : ItemInformationProvider.getInstance().canWearEquipment(chr, equip.list());
         Map<Short, Integer> myEquip = new LinkedHashMap<>();
         Map<Short, Integer> maskedEquip = new LinkedHashMap<>();
         for (Item item : ii) {
@@ -326,7 +328,7 @@ public class PacketCreator {
             p.writeInt(entry.getValue());
         }
         p.writeByte(0xFF);
-        Item cWeapon = equip.getItem((short) -111);
+        Item cWeapon = hostCostume!=null ? null : equip.getItem((short) -111);
         p.writeInt(cWeapon != null ? cWeapon.getItemId() : 0);
         for (int i = 0; i < 3; i++) {
             if (chr.getPet(i) != null) {
@@ -1943,7 +1945,7 @@ public class PacketCreator {
         OutPacket p = OutPacket.create(SendOpcode.SPAWN_PLAYER);
         p.writeInt(chr.getId());
         p.writeByte(chr.getLevel()); //v83
-        p.writeString(chr.getName());
+        p.writeString(server.events.gm.GmHostPresentation.displayName(chr));
         if (chr.getGuildId() < 1) {
             p.writeString("");
             p.writeBytes(new byte[6]);
@@ -2302,6 +2304,17 @@ public class PacketCreator {
         p.writeShort(pOption);
         p.writePos(startPos);
         rebroadcastMovementList(p, movementPacket, movementDataLength);
+        return p;
+    }
+    /** Same v83 monster movement envelope, with one authoritative absolute movement fragment. */
+    public static Packet serverMonsterAction(server.life.Monster monster, int action, boolean left, int skill, int level) {
+        OutPacket p = OutPacket.create(SendOpcode.MOVE_MONSTER);
+        p.writeInt(monster.getObjectId()); p.writeByte(0); p.writeBool(false);
+        p.writeByte((action << 1) | (left ? 1 : 0)); p.writeByte(skill); p.writeByte(level); p.writeShort(0);
+        p.writePos(monster.getPosition()); p.writeByte(1);
+        server.movement.AbsoluteLifeMovement movement = new server.movement.AbsoluteLifeMovement(0,
+                monster.getPosition(),500,(action << 1) | (left ? 1 : 0));
+        movement.setPixelsPerSecond(new Point(0,0)); movement.setFh(monster.getFh()); movement.serialize(p);
         return p;
     }
 

@@ -345,20 +345,28 @@ public class ItemInformationProvider {
     }
 
     private static short getExtraSlotMaxFromPlayer(Client c, int itemId) {
+        return getExtraSlotMaxFromCharacter(c == null ? null : c.getPlayer(),itemId);
+    }
+    private static short getExtraSlotMaxFromCharacter(Character actor, int itemId) {
         short ret = 0;
+        if (actor == null) return ret;
 
         // thanks GMChuck for detecting player sensitive data being cached into getSlotMax
         if (ItemConstants.isThrowingStar(itemId)) {
-            if (c.getPlayer().getJob().isA(Job.NIGHTWALKER1)) {
-                ret += c.getPlayer().getSkillLevel(SkillFactory.getSkill(NightWalker.CLAW_MASTERY)) * 10;
+            if (actor.getJob().isA(Job.NIGHTWALKER1)) {
+                ret += actor.getSkillLevel(SkillFactory.getSkill(NightWalker.CLAW_MASTERY)) * 10;
             } else {
-                ret += c.getPlayer().getSkillLevel(SkillFactory.getSkill(Assassin.CLAW_MASTERY)) * 10;
+                ret += actor.getSkillLevel(SkillFactory.getSkill(Assassin.CLAW_MASTERY)) * 10;
             }
         } else if (ItemConstants.isBullet(itemId)) {
-            ret += c.getPlayer().getSkillLevel(SkillFactory.getSkill(Gunslinger.GUN_MASTERY)) * 10;
+            ret += actor.getSkillLevel(SkillFactory.getSkill(Gunslinger.GUN_MASTERY)) * 10;
         }
 
         return ret;
+    }
+    /** Headless actors use their own learned mastery, never the shared BotClient's player. */
+    public short getSlotMaxForCharacter(Character actor, int itemId) {
+        return (short)(getSlotMax(null,itemId)+getExtraSlotMaxFromCharacter(actor,itemId));
     }
 
     public short getSlotMax(Client c, int itemId) {
@@ -1667,10 +1675,13 @@ public class ItemInformationProvider {
         }
         int totalprob = 0;
         List<RewardItem> rewards = new ArrayList<>();
-        for (Data child : getItemData(itemId).getChildByPath("reward").getChildren()) {
+        Data itemData = getItemData(itemId);
+        Data rewardData = itemData == null ? null : itemData.getChildByPath("reward");
+        if (rewardData == null) return new Pair<>(0, List.of());
+        for (Data child : rewardData.getChildren()) {
             RewardItem reward = new RewardItem();
             reward.itemid = DataTool.getInt("item", child, 0);
-            reward.prob = (byte) DataTool.getInt("prob", child, 0);
+            reward.prob = Math.max(0, DataTool.getInt("prob", child, 0));
             reward.quantity = (short) DataTool.getInt("count", child, 0);
             reward.effect = DataTool.getString("Effect", child, "");
             reward.worldmsg = DataTool.getString("worldMsg", child, null);
@@ -2312,8 +2323,8 @@ public class ItemInformationProvider {
 
     public static final class RewardItem {
 
-        public int itemid, period;
-        public short prob, quantity;
+        public int itemid, period, prob;
+        public short quantity;
         public String effect, worldmsg;
     }
 

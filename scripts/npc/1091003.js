@@ -62,7 +62,12 @@ function action(mode, type, selection) {
             selectedItem = selection;
             qty = 1;
         } else {
-            qty = (selection > 0) ? selection : (selection < 0 ? -selection : 1);
+            if (!Number.isInteger(selection) || selection < 1 || selection > 100) {
+                cm.sendOk("Please choose a whole number from 1 to 100.");
+                cm.dispose();
+                return;
+            }
+            qty = selection;
         }
 
         if (selectedType == 0) { //Making a Knuckler

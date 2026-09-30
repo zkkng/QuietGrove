@@ -52,6 +52,16 @@ public final class GeneralChatHandler extends AbstractPacketHandler {
             c.disconnect(true, false);
             return;
         }
+        if (s.isEmpty()) return;
+        if (s.equalsIgnoreCase("/petcome")) {
+            if (!server.content.SmartPets.recall(chr)) chr.dropMessage(5, "Summon a smart pet trained in Pet Summon by Bartos first.");
+            chr.getAutobanManager().spam(7);
+            return;
+        }
+        if (s.equalsIgnoreCase("@pharaoh")) {
+            if (!(chr.getPartyQuest() instanceof server.partyquest.Pyramid pq) || !pq.useSkill(chr)) chr.dropMessage(5, "Rage of Pharaoh is available after earning a charge inside the Pyramid.");
+            chr.getAutobanManager().spam(7);return;
+        }
         char heading = s.charAt(0);
         if (CommandsExecutor.isCommand(c, s)) {
             CommandsExecutor.getInstance().handle(c, s);
@@ -62,7 +72,8 @@ public final class GeneralChatHandler extends AbstractPacketHandler {
                 return;
             }
 
-            MessageQueue.getInstance().addMessage("primary", new ChatMessage(c.getPlayer(), s)); // SM NOTE Allows player to interact with bots.
+            boolean companionRequest = soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().chat(chr, s);
+            if (!companionRequest) MessageQueue.getInstance().addMessage("primary", new ChatMessage(c.getPlayer(), s));
 
             BotBuffRequestHandler.tryHandle(chr, s); // SM: "hs pls" etc -> nearest eligible bot grants the buff
 

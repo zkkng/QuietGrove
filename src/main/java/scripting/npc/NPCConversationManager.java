@@ -80,6 +80,23 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
     private static final Logger log = LoggerFactory.getLogger(NPCConversationManager.class);
 
     private final int npc;
+    public java.util.List<server.crafting.TcgCatalog.Offer> getTcgOffers() {
+        return server.crafting.TcgCatalog.offersForNpc(getNpc(), getPlayer().getMapId());
+    }
+
+    public String exchangeTcg(int index) {
+        return server.crafting.TcgWorkshop.exchange(getClient(), getNpc(), index);
+    }
+
+    public boolean isPcCafeEnabled() { return server.pccafe.PcCafe.enabled(); }
+    public java.util.List<server.pccafe.PcCafe.Road> getPcCafeRoads() { return server.pccafe.PcCafe.roads(); }
+    public java.util.List<server.pccafe.PcCafe.Reward> getPcCafeRewards() { return server.pccafe.PcCafe.rewards(); }
+    public String getPcCafeStatus() { return server.pccafe.PcCafe.status(getPlayer()); }
+    public String welcomePcCafe() { return server.pccafe.PcCafe.welcome(getPlayer()); }
+    public String enterPcCafeRoad(int choice) { return server.pccafe.PcCafe.enter(getClient(), choice); }
+    public String exchangePcCafeMice(int amount) { return server.pccafe.PcCafe.exchangeMice(getClient(), amount); }
+    public String buyPcCafeReward(int choice) { return server.pccafe.PcCafe.buy(getClient(), choice); }
+
     private int npcOid;
     private String scriptName;
     private String getText;
@@ -485,6 +502,10 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         return c.getChannelServer().getEvent();
     }
 
+    public String joinGmEvent() { return server.events.gm.GmEventService.getInstance().join(getPlayer()); }
+    public String leaveGmEvent() { return server.events.gm.GmEventService.getInstance().leave(getPlayer()); }
+    public boolean claimGmEventReward() { return server.events.gm.GmEventService.getInstance().claimReward(getPlayer()); }
+
     public void divideTeams() {
         if (getEvent() != null) {
             getPlayer().setTeam(getEvent().getLimit() % 2); //muhaha :D
@@ -500,40 +521,8 @@ public class NPCConversationManager extends AbstractPlayerInteraction {
         MapleLeafLogger.log(getPlayer(), true, prize);
     }
 
-    public boolean createPyramid(String mode, boolean party) {//lol
-        PyramidMode mod = PyramidMode.valueOf(mode);
-
-        Party partyz = getPlayer().getParty();
-        MapManager mapManager = c.getChannelServer().getMapFactory();
-
-        MapleMap map = null;
-        int mapid = MapId.NETTS_PYRAMID_SOLO_BASE;
-        if (party) {
-            mapid += 10000;
-        }
-        mapid += (mod.getMode() * 1000);
-
-        for (byte b = 0; b < 5; b++) {//They cannot warp to the next map before the timer ends (:
-            map = mapManager.getMap(mapid + b);
-            if (map.getCharacters().size() > 0) {
-                continue;
-            } else {
-                break;
-            }
-        }
-
-        if (map == null) {
-            return false;
-        }
-
-        if (!party) {
-            partyz = new Party(-1, new PartyCharacter(getPlayer()));
-        }
-        Pyramid py = new Pyramid(partyz, mod, map.getId());
-        getPlayer().setPartyQuest(py);
-        py.warp(mapid);
-        dispose();
-        return true;
+    public boolean createPyramid(String mode, boolean party) {
+        return server.partyquest.Pyramid.enter(getPlayer(), PyramidMode.valueOf(mode).getMode(), false, party, false).isEmpty();
     }
 
     public boolean itemExists(int itemid) {

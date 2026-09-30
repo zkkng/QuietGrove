@@ -7,7 +7,7 @@ import server.maps.MapleMap;
 import static soloMapling.DebugUtilities.debugprint;
 
 public class GameEvent {
-    private static int nextId = 1;
+    private static final java.util.concurrent.atomic.AtomicInteger NEXT_ID = new java.util.concurrent.atomic.AtomicInteger();
 
     private final int id;
     private final long timestamp;
@@ -21,22 +21,32 @@ public class GameEvent {
     private final String message;
     private final Item item;
     private final Boolean pass;
+    private final IncidentSignal incident;
 
     public GameEvent(Character mapleCharacter,
                      EventType type, String message, Item item, Boolean pass) {
-        this.id = nextId++;
+        this(mapleCharacter,mapleCharacter.getMap(),type,message,item,pass,null);
+    }
+
+    public GameEvent(Character mapleCharacter,MapleMap map,EventType type,IncidentSignal incident) {
+        this(mapleCharacter,map,type,incident.phase(),null,null,incident);
+    }
+
+    private GameEvent(Character mapleCharacter,MapleMap map,EventType type,String message,Item item,Boolean pass,IncidentSignal incident) {
+        this.id = NEXT_ID.incrementAndGet();
         this.timestamp = System.currentTimeMillis();
         this.mapleCharacter = mapleCharacter;
-        this.world = mapleCharacter.getWorld();
-        this.channel = mapleCharacter.getMap().getChannelServer().getId();
-        this.map = mapleCharacter.getMap();
-        this.playerName = mapleCharacter.getName();
-        this.playerId = mapleCharacter.getId();
+        this.world = map.getWorld();
+        this.channel = map.getChannelServer().getId();
+        this.map = map;
+        this.playerName = mapleCharacter==null?"Incident":mapleCharacter.getName();
+        this.playerId = mapleCharacter==null?0:mapleCharacter.getId();
 
         this.type = type;
         this.message = message;
         this.item = item;
         this.pass = pass;
+        this.incident = incident;
     }
 
     public int getId() { return id; }
@@ -51,6 +61,7 @@ public class GameEvent {
     public String getMessage() { return message; }
     public Item getItem() { return item; }
     public Boolean getPass() { return pass; }
+    public IncidentSignal getIncident() { return incident; }
     public void printDescription() {
         debugprint("GameEvent: ", id, mapleCharacter, type, message, item, pass);
     }

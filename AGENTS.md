@@ -1,0 +1,3 @@
+# SoloTrainer playtest rule
+
+The owner wants a direct, working trainer for this private SoloMapling server. Preserve the flow: open the EXE, click **INJECT HAX**, and use the powers. Do not introduce PINs, pairing codes, map allowlists, mandatory setup prompts, or other unrequested gates that stop a playtest. Do not call a control working until its real game effect has been verified. Keep the trainer connected across ordinary map transitions. Explain plainly which effects are server-backed and which require client code. If a technical or deployment requirement truly cannot be avoided, prepare and test it before putting it in the player's path.

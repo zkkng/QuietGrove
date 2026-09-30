@@ -108,9 +108,11 @@ function action(mode, type, selection) {
     } else if (status == 3) {
         if (selectedType == 0) { //Medicines
             var text = cm.getText();
-            makeQty = parseInt(text);
-            if (isNaN(makeQty)) {
-                makeQty = 1;
+            makeQty = Number(text);
+            if (!Number.isInteger(makeQty) || makeQty < 1 || makeQty > 100) {
+                cm.sendOk("Please enter a whole number from 1 to 100.");
+                cm.dispose();
+                return;
             }
 
             item = itemSet[selectedItem];

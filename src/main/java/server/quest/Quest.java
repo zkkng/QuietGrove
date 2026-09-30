@@ -51,6 +51,7 @@ import server.quest.requirements.BuffRequirement;
 import server.quest.requirements.CompletedQuestRequirement;
 import server.quest.requirements.EndDateRequirement;
 import server.quest.requirements.FieldEnterRequirement;
+import server.quest.requirements.FameRequirement;
 import server.quest.requirements.InfoExRequirement;
 import server.quest.requirements.InfoNumberRequirement;
 import server.quest.requirements.IntervalRequirement;
@@ -66,6 +67,7 @@ import server.quest.requirements.NpcRequirement;
 import server.quest.requirements.PetRequirement;
 import server.quest.requirements.QuestRequirement;
 import server.quest.requirements.ScriptRequirement;
+import server.quest.requirements.SkillRequirement;
 import tools.PacketCreator;
 import tools.StringUtil;
 
@@ -263,6 +265,7 @@ public class Quest {
     public boolean canQuestByInfoProgress(Character chr) {
         QuestStatus mqs = chr.getQuest(this);
         List<String> ix = mqs.getInfoEx();
+        if (server.content.Medals.handlesInfo(id)) return server.content.Medals.checkInfo(chr, this);
         if (!ix.isEmpty()) {
             short questid = mqs.getQuestID();
             short infoNumber = mqs.getInfoNumber();
@@ -310,11 +313,11 @@ public class Quest {
             }
         }
 
-        return canQuestByInfoProgress(chr);
+        return server.content.Medals.canComplete(chr, id) && canQuestByInfoProgress(chr);
     }
 
     public void start(Character chr, int npc) {
-        if (autoStart || canStart(chr, npc)) {
+        if ((autoStart && getMedalRequirement() < 0) || canStart(chr, npc)) {
             Collection<AbstractQuestAction> acts = startActs.values();
             for (AbstractQuestAction a : acts) {
                 if (!a.check(chr, null)) { // would null be good ?
@@ -333,13 +336,14 @@ public class Quest {
     }
 
     public void complete(Character chr, int npc, Integer selection) {
-        if (autoPreComplete || canComplete(chr, npc)) {
+        if ((autoPreComplete && getMedalRequirement() < 0) || canComplete(chr, npc)) {
             Collection<AbstractQuestAction> acts = completeActs.values();
             for (AbstractQuestAction a : acts) {
                 if (!a.check(chr, selection)) {
                     return;
                 }
             }
+            if (!server.content.Medals.prepareReward(chr, this)) return;
             forceComplete(chr, npc);
             for (AbstractQuestAction a : acts) {
                 a.run(chr, selection);
@@ -395,11 +399,12 @@ public class Quest {
             chr.questTimeLimit(this, timeLimit);
         }
         if (timeLimit2 > 0) {
-            newStatus.setExpirationTime(System.currentTimeMillis() + timeLimit2);
+            newStatus.setExpirationTime(System.currentTimeMillis() + SECONDS.toMillis(timeLimit2));
             chr.questTimeLimit2(this, newStatus.getExpirationTime());
         }
 
         chr.updateQuestStatus(newStatus);
+        server.content.Medals.started(chr, id);
 
         return true;
     }
@@ -541,6 +546,9 @@ public class Quest {
             case MAX_LEVEL:
                 ret = new MaxLevelRequirement(this, data);
                 break;
+            case FAME:
+                ret = new FameRequirement(this, data);
+                break;
             case MESO:
                 ret = new MesoRequirement(this, data);
                 break;
@@ -553,11 +561,23 @@ public class Quest {
             case MOB:
                 ret = new MobRequirement(this, data);
                 break;
+            case MONSTER_BOOK_CARDS:
+                ret = new server.quest.requirements.MonsterBookCardsRequirement(this, data);
+                break;
+            case PARTY_QUEST_RANK:
+                ret = new server.quest.requirements.PartyQuestRankRequirement(this, data);
+                break;
             case MONSTER_BOOK:
                 ret = new MonsterBookCountRequirement(this, data);
                 break;
             case NPC:
                 ret = new NpcRequirement(this, data);
+                break;
+            case PET_RECALL:
+                ret = new server.quest.requirements.PetTrainingRequirement(this, data, 128);
+                break;
+            case PET_AUTO_SPEAK:
+                ret = new server.quest.requirements.PetTrainingRequirement(this, data, 256);
                 break;
             case PET:
                 ret = new PetRequirement(this, data);
@@ -567,6 +587,9 @@ public class Quest {
                 break;
             case EXCEPT_BUFF:
                 ret = new BuffExceptRequirement(this, data);
+                break;
+            case SKILL:
+                ret = new SkillRequirement(this, data);
                 break;
             case SCRIPT:
                 ret = new ScriptRequirement(this, data);
@@ -639,6 +662,8 @@ public class Quest {
         return false;
     }
 
+    public boolean hasCompletionItems() { return completeActs.containsKey(QuestActionType.ITEM); }
+
     public int getMedalRequirement() {
         Integer medalid = medals.get(id);
         return medalid != null ? medalid : -1;
@@ -674,6 +699,11 @@ public class Quest {
 
     public String getName() {
         return name;
+    }
+
+    public boolean isEventQuest() {
+        Data info = questInfo.getChildByPath(Short.toString(id));
+        return DataTool.getInt("area", info, -1) == 51 || startReqs.containsKey(QuestRequirementType.END_DATE) || completeReqs.containsKey(QuestRequirementType.END_DATE);
     }
 
     public String getParentName() {

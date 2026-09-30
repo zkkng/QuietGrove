@@ -1,0 +1,11 @@
+{
+  "mutationAndTransitionCandidates": 1288,
+  "sourceFiles": 576,
+  "activityCandidates": 113,
+  "useCatalogItems": 2290,
+  "consumeAssetItems": 2290,
+  "quests": 2818,
+  "monsters": 1597,
+  "catalogAnomalies": 4,
+  "catalogVersion": "ws0-2d9068f326e0468b"
+}

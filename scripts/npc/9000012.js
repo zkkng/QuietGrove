@@ -45,9 +45,9 @@ function action(mode, type, selection) {
     }
     if (status == 0) {
         if (selection == 0) {
-            cm.sendYesNo("If you leave now, you can't participate in this event for the next 24 hours. Are you sure you want to leave?");
+            cm.sendYesNo("Leave this event and return to your original map?");
         } else if (selection == 1) {
-            if (cm.getMesos < 1 && !cm.canHold(1322005)) {
+            if (cm.getMeso() < 1 || !cm.canHold(1322005)) {
                 cm.sendOk("You don't have enough mesos or you don't have any space in your inventory.");
                 cm.dispose();
             } else {
@@ -57,10 +57,7 @@ function action(mode, type, selection) {
             }
         }
     } else if (status == 1) {
-        if (cm.getEvent() != null) {
-            cm.getEvent().addLimit();
-        }
-        cm.warp(109050001, 0);
+        cm.sendOk(cm.leaveGmEvent());
         cm.dispose();
     }
 }

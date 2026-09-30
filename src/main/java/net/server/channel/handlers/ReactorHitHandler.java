@@ -42,7 +42,8 @@ public final class ReactorHitHandler extends AbstractPacketHandler {
         int skillid = p.readInt();
         Reactor reactor = c.getPlayer().getMap().getReactorByOid(oid);
         if (reactor != null) {
-            reactor.hitReactor(true, charPos, stance, skillid, c);
+            if (server.events.gm.GmEventService.getInstance().reactorHit(c.getPlayer(),reactor,skillid))
+                reactor.hitReactor(true, charPos, stance, skillid, c);
         }
     }
 }

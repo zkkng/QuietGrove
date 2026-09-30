@@ -153,19 +153,13 @@ public final class ChangeMapHandler extends AbstractPacketHandler {
                 return;
             }
 
-            if (chr.getMapId() == MapId.FITNESS_EVENT_LAST) {
-                chr.getFitness().resetTimes();
-            } else if (chr.getMapId() == MapId.OLA_EVENT_LAST_1 || chr.getMapId() == MapId.OLA_EVENT_LAST_2) {
-                chr.getOla().resetTimes();
-            }
-
             if (portal != null) {
                 if (portal.getPosition().distanceSq(chr.getPosition()) > 400000) {
                     c.sendPacket(PacketCreator.enableActions());
                     return;
                 }
 
-                portal.enterPortal(c);
+                if (!server.events.gm.GmEventService.getInstance().coursePortal(chr, portal)) portal.enterPortal(c);
             } else {
                 c.sendPacket(PacketCreator.enableActions());
             }

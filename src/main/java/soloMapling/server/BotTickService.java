@@ -28,6 +28,7 @@ public final class BotTickService {
     private static final long DRIVER_PERIOD_MS = 100;
 
     private static final class Entry {
+        final int botId;
         final Runnable tick;
         volatile long periodMs;
         volatile long nextDueMs;
@@ -39,7 +40,8 @@ public final class BotTickService {
         volatile boolean noThrottle;
         final AtomicBoolean ticking = new AtomicBoolean(false);
 
-        Entry(Runnable tick, long periodMs, long nextDueMs) {
+        Entry(int botId,Runnable tick, long periodMs, long nextDueMs) {
+            this.botId=botId;
             this.tick = tick;
             this.periodMs = periodMs;
             this.nextDueMs = nextDueMs;
@@ -48,6 +50,16 @@ public final class BotTickService {
 
     private static final Map<Integer, Entry> ENTRIES = new ConcurrentHashMap<>();
     private static final AtomicBoolean DRIVER_STARTED = new AtomicBoolean(false);
+    // Java 21 ambient movement sleeps while holding FSM monitors and pins virtual-thread
+    // carriers. Authoritative finite event/party combat must not wait behind that population.
+    private static final java.util.concurrent.ExecutorService combatTicks = java.util.concurrent.Executors.newFixedThreadPool(
+            8,Thread.ofPlatform().daemon(true).name("boss-event-tick-",0).factory());
+
+    // Completion and restoration must remain runnable even when ambient movement
+    // pins every virtual-thread carrier. Callers retain their own ownership fences.
+    public static void runEventLifecycle(Runnable callback) {
+        combatTicks.execute(callback);
+    }
 
     // ── Governor v1 (Fable Phase 5): self-regulating degrade ────────────────
     // If the wheel falls behind (sustained avg dispatch lag over a 5s window above
@@ -75,7 +87,7 @@ public final class BotTickService {
     // startScheduledTask which left a live task alone.
     public static void register(int botId, Runnable tick, long initialDelayMs, long periodMs) {
         ensureDriver();
-        ENTRIES.putIfAbsent(botId, new Entry(tick, periodMs, System.currentTimeMillis() + initialDelayMs));
+        ENTRIES.putIfAbsent(botId, new Entry(botId,tick, periodMs, System.currentTimeMillis() + initialDelayMs));
     }
 
     public static void unregister(int botId) {
@@ -165,7 +177,17 @@ public final class BotTickService {
             BotPerfStats.recordWheelDispatch(lag);
             lagSum += Math.max(0, lag);
             dispatched++;
-            ExecutorServiceManager.runAsync(() -> runTick(e));
+            final long dueAt=now-Math.max(0,lag);
+            Runnable tick=() -> {
+                if(ENTRIES.get(e.botId)!=e) return; // Retired queued callbacks cannot run the replacement FSM.
+                var telemetry=server.events.gm.EventInstrumentation.forBot(e.botId);
+                if(telemetry!=null) telemetry.macroLag(System.currentTimeMillis()-dueAt);
+                runTick(e);
+            };
+            var tasks=soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared();
+            if(tasks.task(e.botId).isPresent() || tasks.eventLease(e.botId).filter(l->l.committed()).isPresent())
+                combatTicks.execute(tick);
+            else ExecutorServiceManager.runAsync(tick);
         }
         governorTick(now, lagSum, dispatched);
     }
@@ -202,7 +224,7 @@ public final class BotTickService {
             // one bot's tick error must never kill its schedule (tickRunnable also guards)
         } finally {
             long now = System.currentTimeMillis();
-            long due = now + (e.noThrottle ? e.periodMs
+            long due = now + (e.noThrottle || server.events.gm.EventInstrumentation.participantCadence(e.botId) ? e.periodMs
                     : (long) (e.periodMs * throttleFactor)); // governor stretches steady cadence only
             long pending = e.pendingDueMs;
             if (pending > 0) {

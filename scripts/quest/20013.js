@@ -54,6 +54,20 @@ function end(mode, type, selection) {
     } else if (status == 1) {
         qm.sendPrev("Here it is, a #t3010060#. What do you think? Nifty, huh? You can #bquickly recover your HP by sitting in this Chair#k. It will be stored in the #bSet-up#k window in your Inventory, so confirm that you've received the chair and head over to #b#p1102008##k. You'll see him if you keep following the arrow to the left. \r\n\r\n#fUI/UIWindow.img/QuestIcon/4/0# \r\n#i3010060# 1 #t3010060# \r\n#fUI/UIWindow.img/QuestIcon/8/0# 95 exp");
     } else if (status == 2) {
+        if (!qm.isQuestStarted(20013)) {
+            qm.dispose();
+            return;
+        }
+        if (!qm.haveItem(4032267, 1) || !qm.haveItem(4032268, 1)) {
+            qm.sendOk("Bring me a Building Stone and a Drape so I can make your chair.");
+            qm.dispose();
+            return;
+        }
+        if (!qm.canHold(3010060, 1)) {
+            qm.sendOk("Make room in your Set-up inventory for the chair, then talk to me again.");
+            qm.dispose();
+            return;
+        }
         qm.gainItem(4032267, -1);
         qm.gainItem(4032268, -1);
         qm.gainItem(3010060, 1);

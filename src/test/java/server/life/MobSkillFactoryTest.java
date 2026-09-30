@@ -1,6 +1,5 @@
 package server.life;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,26 +20,13 @@ class MobSkillFactoryTest {
     @TempDir
     private Path wzPath;
 
-    // The global wz-path property is shared by every WZ-dependent test in the suite;
-    // pointing it at this test's tiny fixture must not leak past this class or later
-    // map-loading tests fail with "Map data not found" (they pass in isolation).
-    private String originalWzPath;
+    private provider.Data fixture;
 
     @BeforeEach
     void setWzPath() {
         MockitoAnnotations.openMocks(this);
         writeTestFileToTempDir();
-        originalWzPath = System.getProperty("wz-path");
-        System.setProperty("wz-path", "%s/wz".formatted(wzPath.toString()));
-    }
-
-    @AfterEach
-    void restoreWzPath() {
-        if (originalWzPath != null) {
-            System.setProperty("wz-path", originalWzPath);
-        } else {
-            System.clearProperty("wz-path");
-        }
+        fixture = new provider.wz.XMLWZFile(wzPath.resolve("wz/Skill.wz")).getData("MobSkill.img");
     }
 
     private void writeTestFileToTempDir() {
@@ -69,7 +55,7 @@ class MobSkillFactoryTest {
 
     @Test
     void shouldLoadExistingMobSkill() {
-        Optional<MobSkill> possibleSkill = MobSkillFactory.getMobSkill(MobSkillType.ATTACK_UP, 1);
+        Optional<MobSkill> possibleSkill = MobSkillFactory.loadMobSkill(MobSkillType.ATTACK_UP, 1,fixture);
 
         assertTrue(possibleSkill.isPresent());
         MobSkill mobSkill = possibleSkill.get();
@@ -83,7 +69,8 @@ class MobSkillFactoryTest {
 
     @Test
     void shouldThrowExceptionOnNonExisting() {
-        assertThrows(IllegalArgumentException.class, () -> MobSkillFactory.getMobSkillOrThrow(MobSkillType.DEFENSE_UP, 1));
+        assertTrue(MobSkillFactory.loadMobSkill(MobSkillType.DEFENSE_UP,1,fixture).isEmpty());
+        assertThrows(IllegalArgumentException.class, () -> MobSkillFactory.getMobSkillOrThrow(MobSkillType.DEFENSE_UP,Integer.MAX_VALUE));
     }
 
 }

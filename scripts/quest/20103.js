@@ -7,6 +7,10 @@ var jobType = 3;
 var canTryFirstJob = true;
 
 function end(mode, type, selection) {
+    if (mode == -1) {
+        qm.dispose();
+        return;
+    }
     if (mode == 0) {
         if (status == 0) {
             qm.sendNext("This is an important decision to make.");
@@ -29,7 +33,7 @@ function end(mode, type, selection) {
                     return;
                 }
 
-                if (!(qm.canHoldAll([1452051, 1142066]) && qm.canHold(2070000))) {
+                if (!qm.canHoldAll([1452051, 1142066, 2060000], [1, 1, 2000])) {
                     qm.sendOk("Make some room in your inventory and talk back to me.");
                     qm.dispose();
                     return;

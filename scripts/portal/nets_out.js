@@ -27,6 +27,7 @@ function enter(pi) {
     var mapid = pi.getPlayer().getSavedLocation("MIRROR");
 
     pi.playPortalSound();
+    if (mapid < 0 || Math.floor(mapid / 1000000) == 926) mapid = 260020500;
     if (mapid == 260020500) {
         pi.warp(mapid, 3);
     } else {

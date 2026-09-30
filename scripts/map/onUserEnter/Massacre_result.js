@@ -1,6 +1,2 @@
-function start(ms) {
-    var py = ms.getPyramid();
-    if (py != null) {
-        py.sendScore(ms.getPlayer());
-    }
-}
+// Results are awarded once by the survival instance before it is disposed.
+function start(ms) {}

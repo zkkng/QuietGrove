@@ -34,6 +34,10 @@ public class Skill {
     private int animationTime;
     private final int job;
     private boolean action;
+    private final java.util.Map<Integer, Integer> prerequisites = new java.util.HashMap<>();
+
+    public java.util.Map<Integer, Integer> getPrerequisites() { return java.util.Map.copyOf(prerequisites); }
+    public void addPrerequisite(int skillId, int level) { prerequisites.put(skillId, level); }
 
     public Skill(int id) {
         this.id = id;

@@ -32,16 +32,23 @@
 
 status = -1;
 oldSelection = -1;
+var finished = false;
 
 function start() {
     cm.sendSimple("Hello, I am Shalon from Singapore Airport. I can assist you in getting you to Kerning City in no time. Do you want to go to Kerning City?\r\n#b#L0#I would like to buy a plane ticket to Kerning City\r\n#b#L1#Let me go in to the departure point.");
 }
 
 function action(mode, type, selection) {
-    status++;
-    if (mode <= 0) {
-        oldSelection = -1;
+    if (finished || mode != 1) {
+        finished = true;
         cm.dispose();
+        return;
+    }
+    status++;
+    if (status == 0 && selection != 0 && selection != 1) {
+        finished = true;
+        cm.dispose();
+        return;
     }
 
     if (status == 0) {
@@ -52,6 +59,7 @@ function action(mode, type, selection) {
         }
         oldSelection = selection;
     } else if (status == 1) {
+        finished = true;
         if (oldSelection == 0) {
             if (cm.getPlayer().getMeso() > 4999 && !cm.getPlayer().haveItem(4031732)) {
                 if (cm.getPlayer().canHold(4031732, 1)) {
@@ -70,7 +78,7 @@ function action(mode, type, selection) {
         } else if (oldSelection == 1) {
             if (cm.itemQuantity(4031732) > 0) {
                 var em = cm.getEventManager("AirPlane");
-                if (em.getProperty("entry") == "true") {
+                if (em != null && em.getProperty("entry") == "true") {
                     cm.warp(540010001);
                     cm.gainItem(4031732, -1);
                 } else {

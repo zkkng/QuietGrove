@@ -98,7 +98,7 @@ function end(mode, type, selection) {
         } else if (status == 3) {
             if (qm.isQuestCompleted(1021)) {
                 qm.dropMessage(1, "Unknown Error");
-            } else if (qm.canHold(2010000) && qm.canHold(2010009)) {
+            } else if (qm.canHoldAll([2010000, 2010009], [3, 3])) {
                 qm.gainExp(10);
                 qm.gainItem(2010000, 3);
                 qm.gainItem(2010009, 3);

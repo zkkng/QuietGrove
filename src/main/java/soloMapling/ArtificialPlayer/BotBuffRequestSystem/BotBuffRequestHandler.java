@@ -187,7 +187,8 @@ public final class BotBuffRequestHandler {
         // bots live on the map but were never registered (no bot type assigned), so they'd
         // otherwise be invisible here. isBot is id-based, so it catches registered + inert alike.
         for (Character chr : map.getCharacters()) {
-            if (chr == null || !BotHelpers.isBot(chr)) {
+            if (chr == null || !BotHelpers.isBot(chr)
+                    || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr)) {
                 continue;
             }
             // Only registered bots have a state; an inert spawn is never "busy".
@@ -227,6 +228,7 @@ public final class BotBuffRequestHandler {
     }
 
     private static void grant(Character chr, Character player, BuffConcept concept) {
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr)) return;
         if (chr == null || chr.getMap() == null || player == null || player.getMap() == null) {
             return;
         }

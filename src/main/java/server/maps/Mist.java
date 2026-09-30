@@ -120,6 +120,7 @@ public class Mist extends AbstractMapObject {
     public Monster getMobOwner() {
         return mob;
     }
+    public MobSkill getMobSkill() { return skill; }
 
     public Character getOwner() {
         return owner;
@@ -163,6 +164,6 @@ public class Mist extends AbstractMapObject {
     }
 
     public boolean makeChanceResult() {
-        return source.makeChanceResult();
+        return isMobMist ? skill.makeChanceResult() : source.makeChanceResult();
     }
 }

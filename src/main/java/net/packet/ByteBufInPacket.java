@@ -8,6 +8,7 @@ import java.awt.*;
 
 public class ByteBufInPacket implements InPacket {
     private final ByteBuf byteBuf;
+    private final long receivedAtNs=System.nanoTime();
 
     public ByteBufInPacket(ByteBuf byteBuf) {
         this.byteBuf = byteBuf;
@@ -17,6 +18,9 @@ public class ByteBufInPacket implements InPacket {
     public byte[] getBytes() {
         return ByteBufUtil.getBytes(byteBuf);
     }
+
+    @Override public long receivedAtNs() {return receivedAtNs;}
+    @Override public int size() {return byteBuf.readableBytes();}
 
     @Override
     public byte readByte() {

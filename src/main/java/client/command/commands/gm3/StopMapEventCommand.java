@@ -33,6 +33,6 @@ public class StopMapEventCommand extends Command {
 
     @Override
     public void execute(Client c, String[] params) {
-        c.getPlayer().getMap().setEventStarted(false);
+        c.getPlayer().dropMessage(5, server.events.gm.GmEventService.getInstance().cancel(c.getPlayer()));
     }
 }

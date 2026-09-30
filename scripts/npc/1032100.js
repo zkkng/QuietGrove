@@ -65,6 +65,7 @@ function action(mode, type, selection) {
         } else if (status == 1) {
             cm.sendSimple("What do you want to make?#b\r\n#L0#Moon Rock#l\r\n#L1#Star Rock#l\r\n#L2#Black Feather#l");
         } else if (status == 2) {
+            if (selection < 0 || selection > 2 || Math.floor(selection) != selection) { cm.dispose(); return; }
             selected = selection;
             if (selection == 0) {
                 item = "Moon Rock";
@@ -77,6 +78,12 @@ function action(mode, type, selection) {
                 cm.sendYesNo("So you want to make a Black Feather? To do that you need #b1 Flaming Feather#k, #b1 Moon Rock#k and #b1 Black Crystal#k. Throw in 30,000 mesos and I'll make it for you. Oh yeah, this piece of feather is a very special item, so if you drop it by any chance, it'll disappear, as well as you won't be able to give it away to someone else.");
             }
         } else if (status == 3) {
+            var outputs = [4011007, 4021009, 4031042];
+            if (selected < 0 || selected >= outputs.length || Math.floor(selected) != selected) { cm.dispose(); return; }
+            if (!cm.canHold(outputs[selected], 1)) {
+                cm.sendOk("Please make room in your ETC inventory before crafting.");
+                cm.dispose(); return;
+            }
             if (selected == 0) {
                 if (cm.haveItem(4011000) && cm.haveItem(4011001) && cm.haveItem(4011002) && cm.haveItem(4011003) && cm.haveItem(4011004) && cm.haveItem(4011005) && cm.haveItem(4011006) && cm.getMeso() >= 10000) {
                     cm.gainMeso(-10000);

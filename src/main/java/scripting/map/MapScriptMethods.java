@@ -108,7 +108,8 @@ public class MapScriptMethods extends AbstractPlayerInteraction {
         }
         
         if (!isQuestStarted(questid)) {
-            if (!quest.forceStart(getPlayer(), 9000066)) {
+            quest.start(getPlayer(), 9000066);
+            if (!isQuestStarted(quest.getId())) {
                 return;
             }
         }
@@ -139,9 +140,11 @@ public class MapScriptMethods extends AbstractPlayerInteraction {
     }
 
     public void touchTheSky() { //29004
+        if (isQuestCompleted(29004)) return;
         Quest quest = Quest.getInstance(29004);
         if (!isQuestStarted(29004)) {
-            if (!quest.forceStart(getPlayer(), 9000066)) {
+            quest.start(getPlayer(), 9000066);
+            if (!isQuestStarted(quest.getId())) {
                 return;
             }
         }
@@ -150,6 +153,7 @@ public class MapScriptMethods extends AbstractPlayerInteraction {
             return;
         }
         String status = Integer.toString(qs.getMedalProgress());
+        getPlayer().setQuestProgress(29004, 27018, status);
         getPlayer().announceUpdateQuest(DelayedQuestUpdate.UPDATE, qs, true);
         getPlayer().sendPacket(PacketCreator.earnTitleMessage(status + "/5 Completed"));
         getPlayer().sendPacket(PacketCreator.earnTitleMessage("The One Who's Touched the Sky title in progress."));

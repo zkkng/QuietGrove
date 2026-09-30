@@ -1,0 +1,351 @@
+# TCG catalog: section|itemId|quantity|mesos|petDays|minimum summoned pet level|ingredientId:quantity,...
+# Edit and restart the server to reload. Prices are per listed bundle. No NX.
+# 207/233 ingredients count WHOLE STACKS (even depleted); gear is consumed and stats do not transfer.
+# Pets last 90 days. All upgrades are guaranteed, with standard WZ output stats.
+# Buy entries are original GMS code-exclusive rewards; ordinary items and crafted outputs are excluded.
+# See docs/tcg-shop-scope-2026-09-26.md for provenance and the exact retained list.
+Buy - Code materials|4031750|1|500000|0|0| # Dark Matter
+Buy - Code materials|4031751|1|500000|0|0| # Vorticular Gyro
+Buy - Code materials|4031752|1|500000|0|0| # Blinking Dingbat
+Buy - Code materials|4031753|1|500000|0|0| # Zeta Residue
+Buy - Code materials|4031754|1|1000000|0|0| # Black Versal Materia
+Buy - Code materials|4031755|1|12000000|0|0| # Taru Totem
+Buy - Code materials|4031756|1|2000000|0|0| # Mystic Astrolabe
+Buy - Code materials|4031757|1|4000000|0|0| # Antellion Relic
+Buy - Code materials|4031758|1|8000000|0|0| # Naricain Jewel
+Buy - Code materials|4031759|1|6000000|0|0| # Subani Ankh
+Buy - Code materials|4031760|1|3000000|0|0| # White Versal Materia
+Buy - Code materials|4031897|1|1000000|0|0| # Ancient Helm
+Buy - Code materials|4031898|1|1000000|0|0| # Ancient Armor
+Buy - Code materials|4031899|1|1000000|0|0| # Ancient Greaves
+Buy - Code materials|4031900|1|1500000|0|0| # Ridley's Book of Rituals
+Buy - Code materials|4031913|1|3000000|0|0| # Stone Tiger Head
+Buy - Code materials|4031914|1|1500000|0|0| # Typhon Crest
+Buy - Code materials|4031915|1|2500000|0|0| # LeFay Jewel
+Buy - Code materials|4031916|1|1500000|0|0| # Pharoah's Wrappings
+Buy - Code materials|4031917|1|3000000|0|0| # Crystal Shard
+Buy - Code materials|4031918|1|1000000|0|0| # Ancient Faceguard
+Buy - Code materials|4031919|1|1000000|0|0| # Ancient Gi
+Buy - Code materials|4031920|1|1000000|0|0| # Ancient Boots
+Buy - Code materials|4031936|1|1500000|0|0| # Taru Spirit Feather
+Buy - Code materials|4032021|1|500000|0|0| # Triferium Fuel Cell
+Buy - Code materials|4032026|1|1500000|0|0| # Ridley's Stone
+Buy - Code materials|4032134|1|1000000|0|0| # Stone Denari
+Buy - Code consumables|2022282|1|2000000|0|0| # Naricain's Demon Elixir
+Buy - Code consumables|2022283|1|150000|0|0| # Subani's Mystic Cauldron
+Buy - Code consumables|2022284|1|75000|0|0| # Barricade Booster
+Buy - Code consumables|2022305|1|100000|0|0| # Taru Face Paint
+Buy - Code consumables|2022306|1|150000|0|0| # Primal Brew
+Buy - Code consumables|2022307|1|100000|0|0| # Spirit Herbs
+Buy - Code consumables|2022308|5|20000|0|0| # Jungle Juice
+Buy - Code consumables|2002027|1|200000|0|0| # Stirge Signal
+Buy - Code consumables|2002028|1|250000|0|0| # T-1337 Supercharger
+Buy - Code consumables|2002029|1|150000|0|0| # Ridley's Scroll of Defense
+Buy - Code consumables|2022439|1|300000|0|0| # Elixir of Darkness
+Buy - Code consumables|2022440|1|300000|0|0| # Gold Dust
+Buy - Code consumables|2022441|1|300000|0|0| # Adonis Cauldron
+Buy - Code collectibles|3010005|1|250000|0|0| # The Red Relaxer
+Buy - Code collectibles|5010046|1|2000000|0|0| # Maple Champion
+Buy - Code collectibles|5010048|1|2000000|0|0| # Maple Champion
+Buy - Code collectibles|5010049|1|2000000|0|0| # Maple Champion
+Buy - Code pets (90 days)|5000034|1|10000000|90|0| # Black Bunny
+Buy - Code pets (90 days)|5000037|1|10000000|90|0| # Husky
+Buy - Code pets (90 days)|5000039|1|12000000|90|0| # Porcupine
+Buy - Code pets (90 days)|5000044|1|15000000|90|0| # Orange tiger
+Buy - Code pets (90 days)|5000045|1|15000000|90|0| # Skunk
+Craft - Forging manuals|4031822|1|100000|0|0|4031758:1,4031759:1 # Infinity Circlet Forging Manual
+Craft - Forging manuals|4031823|1|100000|0|0|4031757:1,4031756:1 # Antellion Miter Forging Manual
+Craft - Forging manuals|4031824|1|100000|0|0|4031755:1,4031757:1,4031759:1 # Stormcaster Gloves Forging Manual
+Craft - Forging manuals|4031825|1|100000|0|0|4031755:1,4031758:1,4031756:1 # Crystal Leaf Earrings Forging Manual
+Craft - Forging manuals|4031826|1|100000|0|0|4031750:1,4031751:1 # Zeta Cape Forging Manual
+Craft - Forging manuals|4031827|1|100000|0|0|4031752:1,4031750:1,4031754:1 # Sirius Cloak Forging Manual
+Craft - Forging manuals|4031828|1|100000|0|0|4031753:1,4031752:1 # Dark Shard Earrings Forging Manual
+Craft - Forging manuals|4031829|1|100000|0|0|4031753:1,4031754:1,4031751:1 # Black Phoenix Shield Forging Manual
+Craft - Forging manuals|4031907|1|100000|0|0|4031913:1,4031917:1 # Tiger's Fang Forging Manual
+Craft - Forging manuals|4031908|1|100000|0|0|4031916:1,4031914:1 # Neva Forging Manual
+Craft - Forging manuals|4031909|1|100000|0|0|4031915:1,4031914:1 # Winkel Forging Manual
+Craft - Forging manuals|4031910|1|100000|0|0|4031915:1,4031916:1 # Glitter Gloves Forging Manual
+Craft - Forging manuals|4031911|1|100000|0|0|4031755:1,4031913:1 # Facestompers Forging Manual
+Craft - Forging manuals|4031912|1|100000|0|0|4031917:1,4031758:1 # Crystal Ilbi Forging Manual
+Craft - Equipment|1002676|1|250000|0|0|4031822:1,4011004:5,4005000:1,4005001:1 # Infinity Circlet
+Craft - Equipment|1002675|1|250000|0|0|4031823:1,4011006:5,4011001:5,4003000:20 # Antellion Miter
+Craft - Equipment|1082223|1|1000000|0|0|4031824:1,4000021:15,4005000:2 # Stormcaster Gloves
+Craft - Equipment|1032048|1|250000|0|0|4031825:1,4021007:2 # Crystal Leaf Earrings
+Craft - Equipment|1102146|1|250000|0|0|4031826:1,4004000:5,4010006:5,4021004:5 # Zeta Cape
+Craft - Equipment|1102145|1|250000|0|0|4031827:1,4011006:5,4021005:5,4021007:2 # Sirius Cloak
+Craft - Equipment|1032049|1|250000|0|0|4031828:1,4020008:10,4004000:10 # Dark Shards
+Craft - Equipment|1092052|1|250000|0|0|4031829:1,4011002:10,4021005:2,4004004:1 # Black Phoenix Shield
+Craft - Equipment|1402045|1|250000|0|0|4031907:1,4005000:6,4021008:6 # Tiger's Fang
+Craft - Equipment|1472064|1|250000|0|0|4031908:1,1472007:1,4021008:6,4005003:6 # Neva
+Craft - Equipment|1452053|1|250000|0|0|4031909:1,4131010:1,4003000:50,4005002:6,4021008:6 # Winkel
+Craft - Equipment|1082230|1|250000|0|0|4031910:1,1082002:1,4021007:6,4005001:6 # Glitter Gloves
+Craft - Equipment|1072344|1|1000000|0|0|4031911:1,4011001:50,4000021:25,4000030:50,4003000:25 # Facestompers
+Craft - Equipment|2070016|800|1000000|0|0|4031912:1,2070006:1,4005003:7,4005004:1 # Crystal Ilbi Throwing-Stars
+Craft - Materia weapons|4031761|1|250000|0|0|4031760:1,4021008:7 # Materia Orb
+Craft - Materia weapons|1302079|1|250000|0|0|4031761:1 # Astral Blade
+Craft - Materia weapons|1322059|1|250000|0|0|4031761:1 # Cosmic Scepter
+Craft - Materia weapons|1412032|1|250000|0|0|4031761:1 # Crescent Moon
+Craft - Materia weapons|1442060|1|250000|0|0|4031761:1 # Heavenly Messenger
+Craft - Materia weapons|1432045|1|250000|0|0|4031761:1 # Sunspear
+Craft - Materia weapons|1382053|1|250000|0|0|4031761:1 # Celestial Staff
+Craft - Materia weapons|1452052|1|250000|0|0|4031761:1 # Andromeda Bow
+Craft - Materia weapons|1462046|1|250000|0|0|4031761:1 # Void Hunter
+Craft - Materia weapons|1472062|1|250000|0|0|4031761:1 # Black Hole
+Craft - Materia weapons|1332064|1|250000|0|0|4031761:1 # Nebula Dagger 1 (LUK)
+Craft - Materia weapons|1332065|1|250000|0|0|4031761:1 # Nebula Dagger 2 (STR)
+Craft - Bosshunter|1002739|1|500000|0|0|4031897:1,4031900:1,4031904:1,4031902:1 # Bosshunter Helm
+Craft - Bosshunter|1002740|1|500000|0|0|4031918:1,4031900:1,4031902:1,4031903:1 # Bosshunter Faceguard
+Craft - Bosshunter|1052148|1|500000|0|0|4031898:1,4031900:1,4031901:1,4031905:1 # Bosshunter Armor
+Craft - Bosshunter|1052149|1|500000|0|0|4031919:1,4031900:1,4031901:1,4031906:1 # Bosshunter Gi
+Craft - Bosshunter|1072342|1|500000|0|0|4031899:1,4031900:1,4031906:1,4031903:1 # Bosshunter Greaves
+Craft - Bosshunter|1072343|1|500000|0|0|4031920:1,4031900:1,4031904:1,4031905:1 # Bosshunter Boots
+Buy - Code equipment|1452054|1|500000|0|0| # Akha
+Craft - Taru upgrades|1452055|1|250000|0|15|1452054:1,4031936:1,4005001:5,4031937:10 # Akhasuma
+Craft - Taru upgrades|1452056|1|500000|0|30|1452055:1,4031936:2,4005001:15,4031937:50 # Akhamagna
+Buy - Code equipment|1462047|1|500000|0|0| # Xaru
+Craft - Taru upgrades|1462048|1|250000|0|15|1462047:1,4031936:1,4005001:5,4031937:10 # Xarusuma
+Craft - Taru upgrades|1462049|1|500000|0|30|1462048:1,4031936:2,4005001:15,4031937:50 # Xarumagna
+Buy - Code equipment|1472065|1|500000|0|0| # Kuma
+Craft - Taru upgrades|1472066|1|250000|0|15|1472065:1,4031936:1,4005001:5,4031937:10 # Kumasuma
+Craft - Taru upgrades|1472067|1|500000|0|30|1472066:1,4031936:2,4005001:15,4031937:50 # Kumamagna
+Buy - Code equipment|1332067|1|500000|0|0| # Maku(LUK)
+Craft - Taru upgrades|1332068|1|250000|0|15|1332067:1,4031936:1,4005001:5,4031937:10 # Makusuma(LUK)
+Craft - Taru upgrades|1332069|1|500000|0|30|1332068:1,4031936:2,4005001:15,4031937:50 # Makumagna(LUK)
+Buy - Code equipment|1332070|1|500000|0|0| # Maku(STR)
+Craft - Taru upgrades|1332071|1|250000|0|15|1332070:1,4031936:1,4005001:5,4031937:10 # Makusuma(STR)
+Craft - Taru upgrades|1332072|1|500000|0|30|1332071:1,4031936:2,4005001:15,4031937:50 # Makumagna(STR)
+Buy - Code equipment|1382054|1|500000|0|0| # Umaru
+Craft - Taru upgrades|1382055|1|250000|0|15|1382054:1,4031936:1,4005001:5,4031937:10 # Umarusuma
+Craft - Taru upgrades|1382056|1|500000|0|30|1382055:1,4031936:2,4005001:15,4031937:50 # Umarumagna
+Buy - Code equipment|1102165|1|5000000|0|0| # Taru Spirit Cape
+Buy - Code equipment|1102176|1|500000|0|0| # Stirgeman Cape
+Craft - Stirgeman upgrades|1102177|1|100000|0|0|1102176:1,4032030:12,4032029:5,4032027:8 # Stirgeman Raggedy Cape
+Craft - Stirgeman upgrades|1102178|1|200000|0|0|1102177:1,4032030:12,4032029:5,4032027:8 # Stirgeman Cape Mk II
+Craft - Stirgeman upgrades|1102179|1|300000|0|0|1102178:1,4032030:12,4032029:5,4032027:8 # Stirgeman Cape Mk III
+Craft - Stirgeman upgrades|1102180|1|400000|0|0|1102179:1,4032030:12,4032029:5,4032027:8 # Stirgeman Cape Mk IV
+Craft - Stirgeman upgrades|1102181|1|500000|0|0|1102180:1,4032030:12,4032029:5,4032027:8 # Stirgeman's Cloak of Wiliness
+Craft - Stirgeman upgrades|1102182|1|600000|0|0|1102181:1,4032030:12,4032029:5,4032027:8 # Stirgeman's Cloak of Darkness
+Craft - Stirgeman upgrades|1102183|1|700000|0|0|1102182:1,4032030:12,4032029:5,4032027:8 # Stirgeman's Cloak of Justice
+Buy - Code equipment|1060127|1|500000|0|0| # Stirgeman's Utility Pants
+Craft - Stirgeman upgrades|1060128|1|100000|0|0|1060127:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Pants Mk II
+Craft - Stirgeman upgrades|1060129|1|200000|0|0|1060128:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Pants Mk III
+Craft - Stirgeman upgrades|1060130|1|300000|0|0|1060129:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Pants Mk IV
+Craft - Stirgeman upgrades|1060131|1|400000|0|0|1060130:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Pants Mk V
+Craft - Stirgeman upgrades|1060132|1|500000|0|0|1060131:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Power Pants
+Craft - Stirgeman upgrades|1060133|1|600000|0|0|1060132:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Power Pants Mk II
+Buy - Code equipment|1061149|1|500000|0|0| # Stirgeman's Utility Skirt
+Craft - Stirgeman upgrades|1061150|1|100000|0|0|1061149:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Skirt Mk II
+Craft - Stirgeman upgrades|1061151|1|200000|0|0|1061150:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Skirt Mk III
+Craft - Stirgeman upgrades|1061152|1|300000|0|0|1061151:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Skirt Mk IV
+Craft - Stirgeman upgrades|1061153|1|400000|0|0|1061152:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Utility Skirt Mk V
+Craft - Stirgeman upgrades|1061154|1|500000|0|0|1061153:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Power Skirt
+Craft - Stirgeman upgrades|1061155|1|600000|0|0|1061154:1,4032030:8,4032028:8,4000399:15,4003000:20 # Stirgeman Power Skirt Mk II
+Buy - Code equipment|1302088|1|500000|0|0| # Stirge-on-a-String
+Craft - Stirgeman upgrades|1302089|1|100000|0|0|1302088:1,4032027:15,4000399:10,4032029:5,4032028:8 # Stirge-on-a-Rope
+Craft - Stirgeman upgrades|1302090|1|200000|0|0|1302089:1,4032027:15,4000399:10,4032029:5,4032028:8 # Stirge-o-Whip
+Craft - Stirgeman upgrades|1302091|1|300000|0|0|1302090:1,4032027:15,4000399:10,4032029:5,4032028:8 # Stirge Grappler
+Craft - Stirgeman upgrades|1302092|1|400000|0|0|1302091:1,4032027:15,4000399:10,4032029:5,4032028:8 # Swooping Stirge
+Craft - Stirgeman upgrades|1302094|1|500000|0|0|1302092:1,4032027:15,4000399:10,4032029:5,4032028:8 # Angry Stirge
+Buy - Code equipment|1102193|1|2000000|0|0| # Cloak of Corruption
+Craft - Zakum upgrades|1102194|1|500000|0|0|1102193:1,4031900:1,4005004:50,4031758:1,4031915:1,4032133:1 # Shroud of Zakum
+Buy - Code equipment|1302106|1|2000000|0|0| # Crystal Blade
+Craft - Zakum upgrades|1302107|1|500000|0|0|1302106:1,4131000:1,4130002:1,4021008:50,4032133:1 # Black Crystal Blade
+Buy - Code equipment|1102191|1|2000000|0|0| # El Nathian Cape
+Craft - Zakum upgrades|1102192|1|500000|0|0|1102191:1,4000081:50,4000080:10,4031916:1,4000057:10,4000056:10,4032133:1 # Wrath of El Nath
+Buy - Code equipment|1002856|1|2000000|0|0| # Miner's Hat
+Craft - Zakum upgrades|1002857|1|500000|0|0|1002856:1,4000391:10,4000376:5,4005000:1,4011004:10,4032133:1 # Hard Hat
+Craft - T-1337 potions|2022338|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # VitroJuice
+Craft - T-1337 bonus potions|2022338|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # VitroJuice
+Craft - T-1337 potions|2022339|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # NitroJuice
+Craft - T-1337 bonus potions|2022339|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # NitroJuice
+Craft - T-1337 potions|2022341|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # ElectroJuice
+Craft - T-1337 bonus potions|2022341|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # ElectroJuice
+Craft - T-1337 potions|2022342|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # MegaJuice
+Craft - T-1337 bonus potions|2022342|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # MegaJuice
+Craft - T-1337 potions|2022343|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # GigaJuice
+Craft - T-1337 bonus potions|2022343|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # GigaJuice
+Craft - T-1337 potions|2022344|10|25000|0|0|4032022:1,4000391:50,4032024:1,4032023:1,4032025:1 # JigaJuice
+Craft - T-1337 bonus potions|2022344|15|25000|0|0|4032021:1,4000391:50,4032024:1,4032023:1,4032025:1 # JigaJuice
+Craft - Ridley (Papulatus)|2290009|1|8500000|0|0|4032026:1,4031901:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Papulatus)|2290045|1|8500000|0|0|4032026:1,4031901:1 # [Mastery Book] Ifrit
+Craft - Ridley (Papulatus)|2290025|1|8500000|0|0|4032026:1,4031901:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Papulatus)|4161015|1|25000|0|0|4032026:1,4031901:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Papulatus)|1032027|1|25000|0|0|4032026:1,4031901:1 # Black Emerald Earrings
+Craft - Ridley (Papulatus)|1302026|1|25000|0|0|4032026:1,4031901:1 # Black Umbrella
+Craft - Ridley (Papulatus)|1382035|1|3500000|0|0|4032026:1,4031901:1 # Blue Marine
+Craft - Ridley (Papulatus)|1050103|1|25000|0|0|4032026:1,4031901:1 # Blue Varuna
+Craft - Ridley (Papulatus)|1122006|1|25000|0|0|4032026:1,4031901:1 # Bow-tie (Blue)
+Craft - Ridley (Papulatus)|1122004|1|25000|0|0|4032026:1,4031901:1 # Bow-tie (Pink)
+Craft - Ridley (Papulatus)|1372010|1|25000|0|0|4032026:1,4031901:1 # Dimon Wand
+Craft - Ridley (Papulatus)|1382037|1|3500000|0|0|4032026:1,4031901:1 # Doomsday Staff
+Craft - Ridley (Papulatus)|1382036|1|3500000|0|0|4032026:1,4031901:1 # Dragon Staff
+Craft - Ridley (Papulatus)|1372032|1|3500000|0|0|4032026:1,4031901:1 # Dragon Wand
+Craft - Ridley (Papulatus)|1032007|1|25000|0|0|4032026:1,4031901:1 # Emerald Earrings
+Craft - Ridley (Papulatus)|1312013|1|25000|0|0|4032026:1,4031901:1 # Green Paint Brush
+Craft - Ridley (Papulatus)|1302027|1|25000|0|0|4032026:1,4031901:1 # Green Umbrella
+Craft - Ridley (Papulatus)|1002398|1|25000|0|0|4032026:1,4031901:1 # Green Varr Hat
+Craft - Ridley (Papulatus)|1382008|1|25000|0|0|4032026:1,4031901:1 # Kage
+Craft - Ridley (Papulatus)|1302028|1|25000|0|0|4032026:1,4031901:1 # Light Purple Umbrella
+Craft - Ridley (Papulatus)|1102042|1|25000|0|0|4032026:1,4031901:1 # Purple Adventurer Cape
+Craft - Ridley (Papulatus)|1002395|1|25000|0|0|4032026:1,4031901:1 # Purple Bandana
+Craft - Ridley (Papulatus)|1382016|1|3500000|0|0|4032026:1,4031901:1 # Pyogo Mushroom
+Craft - Ridley (Papulatus)|1032028|1|25000|0|0|4032026:1,4031901:1 # Red Emerald Earrings
+Craft - Ridley (Papulatus)|1032046|1|25000|0|0|4032026:1,4031901:1 # Spider Venom Earrings
+Craft - Ridley (Tengu)|2290009|1|8500000|0|0|4032026:1,4031902:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Tengu)|2290045|1|8500000|0|0|4032026:1,4031902:1 # [Mastery Book] Ifrit
+Craft - Ridley (Tengu)|2290025|1|8500000|0|0|4032026:1,4031902:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Tengu)|4161015|1|25000|0|0|4032026:1,4031902:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Tengu)|1032027|1|25000|0|0|4032026:1,4031902:1 # Black Emerald Earrings
+Craft - Ridley (Tengu)|1302026|1|25000|0|0|4032026:1,4031902:1 # Black Umbrella
+Craft - Ridley (Tengu)|1382035|1|3500000|0|0|4032026:1,4031902:1 # Blue Marine
+Craft - Ridley (Tengu)|1050103|1|25000|0|0|4032026:1,4031902:1 # Blue Varuna
+Craft - Ridley (Tengu)|1122006|1|25000|0|0|4032026:1,4031902:1 # Bow-tie (Blue)
+Craft - Ridley (Tengu)|1122004|1|25000|0|0|4032026:1,4031902:1 # Bow-tie (Pink)
+Craft - Ridley (Tengu)|1372010|1|25000|0|0|4032026:1,4031902:1 # Dimon Wand
+Craft - Ridley (Tengu)|1382037|1|3500000|0|0|4032026:1,4031902:1 # Doomsday Staff
+Craft - Ridley (Tengu)|1382036|1|3500000|0|0|4032026:1,4031902:1 # Dragon Staff
+Craft - Ridley (Tengu)|1372032|1|3500000|0|0|4032026:1,4031902:1 # Dragon Wand
+Craft - Ridley (Tengu)|1032007|1|25000|0|0|4032026:1,4031902:1 # Emerald Earrings
+Craft - Ridley (Tengu)|1312013|1|25000|0|0|4032026:1,4031902:1 # Green Paint Brush
+Craft - Ridley (Tengu)|1302027|1|25000|0|0|4032026:1,4031902:1 # Green Umbrella
+Craft - Ridley (Tengu)|1002398|1|25000|0|0|4032026:1,4031902:1 # Green Varr Hat
+Craft - Ridley (Tengu)|1382008|1|25000|0|0|4032026:1,4031902:1 # Kage
+Craft - Ridley (Tengu)|1302028|1|25000|0|0|4032026:1,4031902:1 # Light Purple Umbrella
+Craft - Ridley (Tengu)|1102042|1|25000|0|0|4032026:1,4031902:1 # Purple Adventurer Cape
+Craft - Ridley (Tengu)|1002395|1|25000|0|0|4032026:1,4031902:1 # Purple Bandana
+Craft - Ridley (Tengu)|1382016|1|3500000|0|0|4032026:1,4031902:1 # Pyogo Mushroom
+Craft - Ridley (Tengu)|1032028|1|25000|0|0|4032026:1,4031902:1 # Red Emerald Earrings
+Craft - Ridley (Tengu)|1032046|1|25000|0|0|4032026:1,4031902:1 # Spider Venom Earrings
+Craft - Ridley (Jack O Lantern)|2290009|1|8500000|0|0|4032026:1,4031903:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Jack O Lantern)|2290045|1|8500000|0|0|4032026:1,4031903:1 # [Mastery Book] Ifrit
+Craft - Ridley (Jack O Lantern)|2290025|1|8500000|0|0|4032026:1,4031903:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Jack O Lantern)|4161015|1|25000|0|0|4032026:1,4031903:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Jack O Lantern)|1032027|1|25000|0|0|4032026:1,4031903:1 # Black Emerald Earrings
+Craft - Ridley (Jack O Lantern)|1302026|1|25000|0|0|4032026:1,4031903:1 # Black Umbrella
+Craft - Ridley (Jack O Lantern)|1382035|1|3500000|0|0|4032026:1,4031903:1 # Blue Marine
+Craft - Ridley (Jack O Lantern)|1050103|1|25000|0|0|4032026:1,4031903:1 # Blue Varuna
+Craft - Ridley (Jack O Lantern)|1122006|1|25000|0|0|4032026:1,4031903:1 # Bow-tie (Blue)
+Craft - Ridley (Jack O Lantern)|1122004|1|25000|0|0|4032026:1,4031903:1 # Bow-tie (Pink)
+Craft - Ridley (Jack O Lantern)|1372010|1|25000|0|0|4032026:1,4031903:1 # Dimon Wand
+Craft - Ridley (Jack O Lantern)|1382037|1|3500000|0|0|4032026:1,4031903:1 # Doomsday Staff
+Craft - Ridley (Jack O Lantern)|1382036|1|3500000|0|0|4032026:1,4031903:1 # Dragon Staff
+Craft - Ridley (Jack O Lantern)|1372032|1|3500000|0|0|4032026:1,4031903:1 # Dragon Wand
+Craft - Ridley (Jack O Lantern)|1032007|1|25000|0|0|4032026:1,4031903:1 # Emerald Earrings
+Craft - Ridley (Jack O Lantern)|1312013|1|25000|0|0|4032026:1,4031903:1 # Green Paint Brush
+Craft - Ridley (Jack O Lantern)|1302027|1|25000|0|0|4032026:1,4031903:1 # Green Umbrella
+Craft - Ridley (Jack O Lantern)|1002398|1|25000|0|0|4032026:1,4031903:1 # Green Varr Hat
+Craft - Ridley (Jack O Lantern)|1382008|1|25000|0|0|4032026:1,4031903:1 # Kage
+Craft - Ridley (Jack O Lantern)|1302028|1|25000|0|0|4032026:1,4031903:1 # Light Purple Umbrella
+Craft - Ridley (Jack O Lantern)|1102042|1|25000|0|0|4032026:1,4031903:1 # Purple Adventurer Cape
+Craft - Ridley (Jack O Lantern)|1002395|1|25000|0|0|4032026:1,4031903:1 # Purple Bandana
+Craft - Ridley (Jack O Lantern)|1382016|1|3500000|0|0|4032026:1,4031903:1 # Pyogo Mushroom
+Craft - Ridley (Jack O Lantern)|1032028|1|25000|0|0|4032026:1,4031903:1 # Red Emerald Earrings
+Craft - Ridley (Jack O Lantern)|1032046|1|25000|0|0|4032026:1,4031903:1 # Spider Venom Earrings
+Craft - Ridley (Ergoth)|2290009|1|8500000|0|0|4032026:1,4031904:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Ergoth)|2290045|1|8500000|0|0|4032026:1,4031904:1 # [Mastery Book] Ifrit
+Craft - Ridley (Ergoth)|2290025|1|8500000|0|0|4032026:1,4031904:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Ergoth)|4161015|1|25000|0|0|4032026:1,4031904:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Ergoth)|1032027|1|25000|0|0|4032026:1,4031904:1 # Black Emerald Earrings
+Craft - Ridley (Ergoth)|1302026|1|25000|0|0|4032026:1,4031904:1 # Black Umbrella
+Craft - Ridley (Ergoth)|1382035|1|3500000|0|0|4032026:1,4031904:1 # Blue Marine
+Craft - Ridley (Ergoth)|1050103|1|25000|0|0|4032026:1,4031904:1 # Blue Varuna
+Craft - Ridley (Ergoth)|1122006|1|25000|0|0|4032026:1,4031904:1 # Bow-tie (Blue)
+Craft - Ridley (Ergoth)|1122004|1|25000|0|0|4032026:1,4031904:1 # Bow-tie (Pink)
+Craft - Ridley (Ergoth)|1372010|1|25000|0|0|4032026:1,4031904:1 # Dimon Wand
+Craft - Ridley (Ergoth)|1382037|1|3500000|0|0|4032026:1,4031904:1 # Doomsday Staff
+Craft - Ridley (Ergoth)|1382036|1|3500000|0|0|4032026:1,4031904:1 # Dragon Staff
+Craft - Ridley (Ergoth)|1372032|1|3500000|0|0|4032026:1,4031904:1 # Dragon Wand
+Craft - Ridley (Ergoth)|1032007|1|25000|0|0|4032026:1,4031904:1 # Emerald Earrings
+Craft - Ridley (Ergoth)|1312013|1|25000|0|0|4032026:1,4031904:1 # Green Paint Brush
+Craft - Ridley (Ergoth)|1302027|1|25000|0|0|4032026:1,4031904:1 # Green Umbrella
+Craft - Ridley (Ergoth)|1002398|1|25000|0|0|4032026:1,4031904:1 # Green Varr Hat
+Craft - Ridley (Ergoth)|1382008|1|25000|0|0|4032026:1,4031904:1 # Kage
+Craft - Ridley (Ergoth)|1302028|1|25000|0|0|4032026:1,4031904:1 # Light Purple Umbrella
+Craft - Ridley (Ergoth)|1102042|1|25000|0|0|4032026:1,4031904:1 # Purple Adventurer Cape
+Craft - Ridley (Ergoth)|1002395|1|25000|0|0|4032026:1,4031904:1 # Purple Bandana
+Craft - Ridley (Ergoth)|1382016|1|3500000|0|0|4032026:1,4031904:1 # Pyogo Mushroom
+Craft - Ridley (Ergoth)|1032028|1|25000|0|0|4032026:1,4031904:1 # Red Emerald Earrings
+Craft - Ridley (Ergoth)|1032046|1|25000|0|0|4032026:1,4031904:1 # Spider Venom Earrings
+Craft - Ridley (Pianus)|2290009|1|8500000|0|0|4032026:1,4031905:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Pianus)|2290045|1|8500000|0|0|4032026:1,4031905:1 # [Mastery Book] Ifrit
+Craft - Ridley (Pianus)|2290025|1|8500000|0|0|4032026:1,4031905:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Pianus)|4161015|1|25000|0|0|4032026:1,4031905:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Pianus)|1032027|1|25000|0|0|4032026:1,4031905:1 # Black Emerald Earrings
+Craft - Ridley (Pianus)|1302026|1|25000|0|0|4032026:1,4031905:1 # Black Umbrella
+Craft - Ridley (Pianus)|1382035|1|3500000|0|0|4032026:1,4031905:1 # Blue Marine
+Craft - Ridley (Pianus)|1050103|1|25000|0|0|4032026:1,4031905:1 # Blue Varuna
+Craft - Ridley (Pianus)|1122006|1|25000|0|0|4032026:1,4031905:1 # Bow-tie (Blue)
+Craft - Ridley (Pianus)|1122004|1|25000|0|0|4032026:1,4031905:1 # Bow-tie (Pink)
+Craft - Ridley (Pianus)|1372010|1|25000|0|0|4032026:1,4031905:1 # Dimon Wand
+Craft - Ridley (Pianus)|1382037|1|3500000|0|0|4032026:1,4031905:1 # Doomsday Staff
+Craft - Ridley (Pianus)|1382036|1|3500000|0|0|4032026:1,4031905:1 # Dragon Staff
+Craft - Ridley (Pianus)|1372032|1|3500000|0|0|4032026:1,4031905:1 # Dragon Wand
+Craft - Ridley (Pianus)|1032007|1|25000|0|0|4032026:1,4031905:1 # Emerald Earrings
+Craft - Ridley (Pianus)|1312013|1|25000|0|0|4032026:1,4031905:1 # Green Paint Brush
+Craft - Ridley (Pianus)|1302027|1|25000|0|0|4032026:1,4031905:1 # Green Umbrella
+Craft - Ridley (Pianus)|1002398|1|25000|0|0|4032026:1,4031905:1 # Green Varr Hat
+Craft - Ridley (Pianus)|1382008|1|25000|0|0|4032026:1,4031905:1 # Kage
+Craft - Ridley (Pianus)|1302028|1|25000|0|0|4032026:1,4031905:1 # Light Purple Umbrella
+Craft - Ridley (Pianus)|1102042|1|25000|0|0|4032026:1,4031905:1 # Purple Adventurer Cape
+Craft - Ridley (Pianus)|1002395|1|25000|0|0|4032026:1,4031905:1 # Purple Bandana
+Craft - Ridley (Pianus)|1382016|1|3500000|0|0|4032026:1,4031905:1 # Pyogo Mushroom
+Craft - Ridley (Pianus)|1032028|1|25000|0|0|4032026:1,4031905:1 # Red Emerald Earrings
+Craft - Ridley (Pianus)|1032046|1|25000|0|0|4032026:1,4031905:1 # Spider Venom Earrings
+Craft - Ridley (Balrog)|2290009|1|8500000|0|0|4032026:1,4031906:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Balrog)|2290045|1|8500000|0|0|4032026:1,4031906:1 # [Mastery Book] Ifrit
+Craft - Ridley (Balrog)|2290025|1|8500000|0|0|4032026:1,4031906:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Balrog)|4161015|1|25000|0|0|4032026:1,4031906:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Balrog)|1032027|1|25000|0|0|4032026:1,4031906:1 # Black Emerald Earrings
+Craft - Ridley (Balrog)|1302026|1|25000|0|0|4032026:1,4031906:1 # Black Umbrella
+Craft - Ridley (Balrog)|1382035|1|3500000|0|0|4032026:1,4031906:1 # Blue Marine
+Craft - Ridley (Balrog)|1050103|1|25000|0|0|4032026:1,4031906:1 # Blue Varuna
+Craft - Ridley (Balrog)|1122006|1|25000|0|0|4032026:1,4031906:1 # Bow-tie (Blue)
+Craft - Ridley (Balrog)|1122004|1|25000|0|0|4032026:1,4031906:1 # Bow-tie (Pink)
+Craft - Ridley (Balrog)|1372010|1|25000|0|0|4032026:1,4031906:1 # Dimon Wand
+Craft - Ridley (Balrog)|1382037|1|3500000|0|0|4032026:1,4031906:1 # Doomsday Staff
+Craft - Ridley (Balrog)|1382036|1|3500000|0|0|4032026:1,4031906:1 # Dragon Staff
+Craft - Ridley (Balrog)|1372032|1|3500000|0|0|4032026:1,4031906:1 # Dragon Wand
+Craft - Ridley (Balrog)|1032007|1|25000|0|0|4032026:1,4031906:1 # Emerald Earrings
+Craft - Ridley (Balrog)|1312013|1|25000|0|0|4032026:1,4031906:1 # Green Paint Brush
+Craft - Ridley (Balrog)|1302027|1|25000|0|0|4032026:1,4031906:1 # Green Umbrella
+Craft - Ridley (Balrog)|1002398|1|25000|0|0|4032026:1,4031906:1 # Green Varr Hat
+Craft - Ridley (Balrog)|1382008|1|25000|0|0|4032026:1,4031906:1 # Kage
+Craft - Ridley (Balrog)|1302028|1|25000|0|0|4032026:1,4031906:1 # Light Purple Umbrella
+Craft - Ridley (Balrog)|1102042|1|25000|0|0|4032026:1,4031906:1 # Purple Adventurer Cape
+Craft - Ridley (Balrog)|1002395|1|25000|0|0|4032026:1,4031906:1 # Purple Bandana
+Craft - Ridley (Balrog)|1382016|1|3500000|0|0|4032026:1,4031906:1 # Pyogo Mushroom
+Craft - Ridley (Balrog)|1032028|1|25000|0|0|4032026:1,4031906:1 # Red Emerald Earrings
+Craft - Ridley (Balrog)|1032046|1|25000|0|0|4032026:1,4031906:1 # Spider Venom Earrings
+Craft - Ridley (Bigfoot)|2290009|1|8500000|0|0|4032026:1,4032013:1 # [Mastery Book] Advanced Combo Attack
+Craft - Ridley (Bigfoot)|2290045|1|8500000|0|0|4032026:1,4032013:1 # [Mastery Book] Ifrit
+Craft - Ridley (Bigfoot)|2290025|1|8500000|0|0|4032026:1,4032013:1 # [Mastery Book] Mana Reflection
+Craft - Ridley (Bigfoot)|4161015|1|25000|0|0|4032026:1,4032013:1 # [Storybook] Burning Book of Fire
+Craft - Ridley (Bigfoot)|1032027|1|25000|0|0|4032026:1,4032013:1 # Black Emerald Earrings
+Craft - Ridley (Bigfoot)|1302026|1|25000|0|0|4032026:1,4032013:1 # Black Umbrella
+Craft - Ridley (Bigfoot)|1382035|1|3500000|0|0|4032026:1,4032013:1 # Blue Marine
+Craft - Ridley (Bigfoot)|1050103|1|25000|0|0|4032026:1,4032013:1 # Blue Varuna
+Craft - Ridley (Bigfoot)|1122006|1|25000|0|0|4032026:1,4032013:1 # Bow-tie (Blue)
+Craft - Ridley (Bigfoot)|1122004|1|25000|0|0|4032026:1,4032013:1 # Bow-tie (Pink)
+Craft - Ridley (Bigfoot)|1372010|1|25000|0|0|4032026:1,4032013:1 # Dimon Wand
+Craft - Ridley (Bigfoot)|1382037|1|3500000|0|0|4032026:1,4032013:1 # Doomsday Staff
+Craft - Ridley (Bigfoot)|1382036|1|3500000|0|0|4032026:1,4032013:1 # Dragon Staff
+Craft - Ridley (Bigfoot)|1372032|1|3500000|0|0|4032026:1,4032013:1 # Dragon Wand
+Craft - Ridley (Bigfoot)|1032007|1|25000|0|0|4032026:1,4032013:1 # Emerald Earrings
+Craft - Ridley (Bigfoot)|1312013|1|25000|0|0|4032026:1,4032013:1 # Green Paint Brush
+Craft - Ridley (Bigfoot)|1302027|1|25000|0|0|4032026:1,4032013:1 # Green Umbrella
+Craft - Ridley (Bigfoot)|1002398|1|25000|0|0|4032026:1,4032013:1 # Green Varr Hat
+Craft - Ridley (Bigfoot)|1382008|1|25000|0|0|4032026:1,4032013:1 # Kage
+Craft - Ridley (Bigfoot)|1302028|1|25000|0|0|4032026:1,4032013:1 # Light Purple Umbrella
+Craft - Ridley (Bigfoot)|1102042|1|25000|0|0|4032026:1,4032013:1 # Purple Adventurer Cape
+Craft - Ridley (Bigfoot)|1002395|1|25000|0|0|4032026:1,4032013:1 # Purple Bandana
+Craft - Ridley (Bigfoot)|1382016|1|3500000|0|0|4032026:1,4032013:1 # Pyogo Mushroom
+Craft - Ridley (Bigfoot)|1032028|1|25000|0|0|4032026:1,4032013:1 # Red Emerald Earrings
+Craft - Ridley (Bigfoot)|1032046|1|25000|0|0|4032026:1,4032013:1 # Spider Venom Earrings
+Craft - Stone Denari|1332031|1|25000|0|0|4032134:1 # Dragon Toenail
+Craft - Stone Denari|2022117|10|25000|0|0|4032134:1 # Maple Syrup
+Craft - Stone Denari|3010014|1|2000000|0|0|4032134:1 # Moon Star Chair
+Craft - Stone Denari|4131001|1|25000|0|0|4032134:1 # One-Handed Axe Forging Manual
+Craft - Stone Denari|4130004|1|25000|0|0|4032134:1 # One-Handed Blunt Weapon Forging Stimulator
+Craft - Stone Denari|4131007|1|25000|0|0|4032134:1 # Pole Arm Forging Manual
+Craft - Stone Denari|2000005|100|25000|0|0|4032134:1 # Power Elixir
+Craft - Stone Denari|1432013|1|25000|0|0|4032134:1 # Pumpkin Spear

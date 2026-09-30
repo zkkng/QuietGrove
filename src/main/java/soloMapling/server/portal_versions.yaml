@@ -1,7 +1,6 @@
 portal_versions:
-  674030100: 99 # Entrance to MV Lair
-  300000100: 99 # Entrance to Altair Forest
-  105100000: 99 # Balrog Boss Bottom of the Temple
+  # MV Lair, Altair Forest and Balrog's approach are accessible in this v83 world.
+  # Their quest and instance-entry scripts still enforce normal progression.
 
   221000000: 24 # Omega Sector
   200082300: 26 # Orbis - Orbis Tower<B2> - Aqua Road

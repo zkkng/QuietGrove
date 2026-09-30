@@ -114,7 +114,12 @@ function action(mode, type, selection) {
         if (selectedType != 4) {
             selectedItem = selection;
         } else {
-            qty = (selection > 0) ? selection : (selection < 0 ? -selection : 1);
+            if (!Number.isInteger(selection) || selection < 1 || selection > 100) {
+                cm.sendOk("Please choose a whole number from 1 to 100.");
+                cm.dispose();
+                return;
+            }
+            qty = selection;
         }   // thanks br1337 for showing such a simple exploit with quantity on NPC crafters
         if (selectedType == 0) { //bow refine
             var matSet = [[4003001, 4000000], [4011001, 4003000], [4003001, 4000016], [4011001, 4021006, 4003000], [4011001, 4011006, 4021003, 4021006, 4003000], [4011004, 4021000, 4021004, 4003000], [4021008, 4011001, 4011006, 4003000, 4000014]];

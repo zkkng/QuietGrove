@@ -37,6 +37,11 @@ COPY wz ./wz
 COPY --from=jar /opt/cosmic/target/Cosmic.jar ./Server.jar
 # Scripts are sourced on server startup, so you can mount over them for quicker redeploy.
 COPY scripts ./scripts/
+# PC cafe state is initialized from this runtime file during combat.
+COPY server-config ./server-config/
+# Bot dialogue, item pools and movement recordings are read using source-relative
+# filesystem paths at runtime (they are not all loaded from the JAR).
+COPY src/main/java/soloMapling ./src/main/java/soloMapling/
 # Config is read on server startup, so you can mount over it for quicker redeploy.
 COPY config.yaml ./
 # Default exposure, although not required if using docker compose.

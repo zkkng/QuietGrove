@@ -67,6 +67,7 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 public class EventInstanceManager {
     private static final Logger log = LoggerFactory.getLogger(EventInstanceManager.class);
     private final Map<Integer, Character> chars = new HashMap<>();
+    private final Map<Integer, Long> medalEntries = new java.util.concurrent.ConcurrentHashMap<>();
     private int leaderId = -1;
     private final List<Monster> mobs = new LinkedList<>();
     private final Map<Character, Integer> killCount = new HashMap<>();
@@ -237,7 +238,10 @@ public class EventInstanceManager {
     }
 
     public synchronized void registerPlayer(final Character chr, boolean runEntryScript) {
-        if (chr == null || !chr.isLoggedinWorld() || disposed) {
+        if (chr != null && !soloMapling.ArtificialPlayer.CompanionSystem.BossAccess.enterInstance(chr,this)) return;
+        if (chr == null || (!chr.isLoggedinWorld() && !(soloMapling.ArtificialPlayer.BotHelpers.isBot(chr)
+                && soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr)
+                && soloMapling.ArtificialPlayer.CompanionSystem.BossAccess.enterInstance(chr,this))) || disposed) {
             return;
         }
 
@@ -248,6 +252,9 @@ public class EventInstanceManager {
             }
 
             chars.put(chr.getId(), chr);
+            if (medalEntries.putIfAbsent(chr.getId(), System.currentTimeMillis()) == null) {
+                server.content.PqRanks.entered(chr, em.getName());
+            }
             chr.setEventInstance(this);
         } finally {
             writeLock.unlock();
@@ -263,7 +270,7 @@ public class EventInstanceManager {
     }
 
     public void exitPlayer(final Character chr) {
-        if (chr == null || !chr.isLoggedin()) {
+        if (chr == null || (!chr.isLoggedin() && !soloMapling.ArtificialPlayer.BotHelpers.isBot(chr))) {
             return;
         }
 
@@ -1092,10 +1099,12 @@ public class EventInstanceManager {
         }
     }
 
-    public final void setEventCleared() {
+    public final synchronized void setEventCleared() {
+        if (eventCleared) return;
         eventCleared = true;
 
         for (Character chr : getPlayers()) {
+            server.content.PqRanks.cleared(chr, em.getName(), System.currentTimeMillis() - medalEntries.getOrDefault(chr.getId(), System.currentTimeMillis()));
             chr.awardQuestPoint(YamlConfig.config.server.QUEST_POINT_PER_EVENT_CLEAR);
         }
 

@@ -42,44 +42,54 @@ import java.util.List;
  * @author kevintjuh93
  */
 public final class ItemRewardHandler extends AbstractPacketHandler {
+    public static RewardItem selectReward(List<RewardItem> rewards, int roll) {
+        if (roll < 0) return null;
+        for (RewardItem reward : rewards) {
+            if (reward.prob <= 0) continue;
+            if (roll < reward.prob) return reward;
+            roll -= reward.prob;
+        }
+        return null;
+    }
+
     @Override
     public final void handlePacket(InPacket p, Client c) {
-        byte slot = (byte) p.readShort();
-        int itemId = p.readInt(); // will load from xml I don't care.
-
-        Item it = c.getPlayer().getInventory(InventoryType.USE).getItem(slot);   // null check here thanks to Thora
-        if (it == null || it.getItemId() != itemId || c.getPlayer().getInventory(InventoryType.USE).countById(itemId) < 1) {
-            return;
-        }
-
-        ItemInformationProvider ii = ItemInformationProvider.getInstance();
-        Pair<Integer, List<RewardItem>> rewards = ii.getItemReward(itemId);
-        for (RewardItem reward : rewards.getRight()) {
-            if (!InventoryManipulator.checkSpace(c, reward.itemid, reward.quantity, "")) {
-                c.sendPacket(PacketCreator.getShowInventoryFull());
-                break;
-            }
-            if (Randomizer.nextInt(rewards.getLeft()) < reward.prob) {//Is it even possible to get an item with prob 1?
-                if (ItemConstants.getInventoryType(reward.itemid) == InventoryType.EQUIP) {
-                    final Item item = ii.getEquipById(reward.itemid);
-                    if (reward.period != -1) {
-                        // TODO is this a bug, meant to be 60 * 60 * 1000?
-                        item.setExpiration(currentServerTime() + reward.period * 60 * 60 * 10);
+        short slot = p.readShort();
+        int itemId = p.readInt();
+        if (!c.tryacquireClient()) return;
+        try {
+            synchronized (c.getPlayer()) {
+                var useInventory = c.getPlayer().getInventory(InventoryType.USE);
+                try (var locks = server.content.InventoryLocks.acquire(c.getPlayer(), InventoryType.EQUIP, InventoryType.USE, InventoryType.SETUP, InventoryType.ETC, InventoryType.CASH)) {
+                Item it = useInventory.getItem(slot);
+                if (it == null || it.getItemId() != itemId || it.getQuantity() < 1) return;
+                ItemInformationProvider ii = ItemInformationProvider.getInstance();
+                Pair<Integer, List<RewardItem>> rewards = ii.getItemReward(itemId);
+                if (rewards == null || rewards.getLeft() <= 0 || rewards.getRight().isEmpty()) return;
+                // Check every possible outcome before rolling: a full inventory must not filter rare prizes.
+                for (RewardItem reward : rewards.getRight()) {
+                    if (!InventoryManipulator.checkSpace(c, reward.itemid, reward.quantity, "")) {
+                        c.sendPacket(PacketCreator.getShowInventoryFull()); return;
                     }
-                    InventoryManipulator.addFromDrop(c, item, false);
-                } else {
-                    InventoryManipulator.addById(c, reward.itemid, reward.quantity, "", -1);
                 }
-                InventoryManipulator.removeById(c, InventoryType.USE, itemId, 1, false, false);
+                RewardItem reward = selectReward(rewards.getRight(), Randomizer.nextInt(rewards.getLeft()));
+                if (reward == null) return;
+                Item item = ItemConstants.getInventoryType(reward.itemid) == InventoryType.EQUIP
+                    ? ii.getEquipById(reward.itemid) : new Item(reward.itemid, (short) 0, reward.quantity);
+                if (item == null) return;
+                if (reward.period > 0) item.setExpiration(currentServerTime() + java.util.concurrent.TimeUnit.HOURS.toMillis(reward.period));
+                if (!InventoryManipulator.addFromDrop(c, item, false)) return;
+                InventoryManipulator.removeFromSlot(c, InventoryType.USE, slot, (short) 1, false);
+                c.sendPacket(PacketCreator.getShowItemGain(reward.itemid, reward.quantity, true));
                 if (reward.worldmsg != null) {
-                    String msg = reward.worldmsg;
-                    msg.replaceAll("/name", c.getPlayer().getName());
-                    msg.replaceAll("/item", ii.getName(reward.itemid));
+                    String msg = reward.worldmsg.replace("/name", c.getPlayer().getName()).replace("/item", ii.getName(reward.itemid));
                     Server.getInstance().broadcastMessage(c.getWorld(), PacketCreator.serverNotice(6, msg));
                 }
-                break;
+                }
             }
+        } finally {
+            c.sendPacket(PacketCreator.enableActions());
+            c.releaseClient();
         }
-        c.sendPacket(PacketCreator.enableActions());
     }
 }

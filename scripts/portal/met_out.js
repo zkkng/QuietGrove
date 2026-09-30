@@ -27,7 +27,7 @@ function enter(pi) {
     var mapId = pi.getPlayer().getSavedLocation("MIRROR");
 
     pi.playPortalSound();
-    if (mapId == -1) {
+    if (mapId < 0 || Math.floor(mapId / 10000) == 91032 || Math.floor(mapId / 10000) == 91033) {
         pi.warp(102040000, 12);
     } else {
         pi.warp(mapId);

@@ -32,10 +32,12 @@ import server.quest.QuestRequirementType;
  */
 public class CompletedQuestRequirement extends AbstractQuestRequirement {
     private int reqQuest;
+    private final boolean normalOnly;
 
 
     public CompletedQuestRequirement(Quest quest, Data data) {
         super(QuestRequirementType.COMPLETED_QUEST);
+        normalOnly = quest != null && quest.getId() == 29001;
         processData(data);
     }
 
@@ -47,6 +49,6 @@ public class CompletedQuestRequirement extends AbstractQuestRequirement {
 
     @Override
     public boolean check(Character chr, Integer npcid) {
-        return chr.getCompletedQuests().size() >= reqQuest;
+        return chr.getCompletedQuests().stream().filter(q -> !normalOnly || !q.getQuest().isEventQuest()).count() >= reqQuest;
     }
 }

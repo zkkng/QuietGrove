@@ -48,6 +48,16 @@ import java.util.Map;
  * @author Danny (Leifde)
  */
 public class MobSkill {
+    private static final ThreadLocal<java.util.function.Predicate<Character>> ACTOR_FENCE = new ThreadLocal<>();
+    public void applyEffectFiltered(Character player, Monster monster, boolean skill, List<Character> banished,
+            java.util.function.Predicate<Character> allowed) {
+        var previous = ACTOR_FENCE.get(); ACTOR_FENCE.set(allowed);
+        try { applyEffect(player,monster,skill,banished); }
+        finally { if (previous == null) ACTOR_FENCE.remove(); else ACTOR_FENCE.set(previous); }
+    }
+    private static boolean allowed(Character c) {
+        var predicate = ACTOR_FENCE.get(); return c != null && (predicate == null || predicate.test(c));
+    }
     private static final Logger log = LoggerFactory.getLogger(MobSkill.class);
 
     private final MobSkillId id;
@@ -177,9 +187,13 @@ public class MobSkill {
     }
 
     public void applyDelayedEffect(final Character player, final Monster monster, final boolean skill, int animationTime) {
+        var map = monster.getMap();
+        var fence = soloMapling.ArtificialPlayer.CompanionSystem.CompanionMonsterAttacks.actorFence(monster);
         Runnable toRun = () -> {
-            if (monster.isAlive()) {
-                applyEffect(player, monster, skill, null);
+            if (monster.isAlive() && monster.getMap() == map && map.getMonsterByOid(monster.getObjectId()) == monster) {
+                List<Character> banished = new ArrayList<>();
+                applyEffectFiltered(player, monster, skill, banished,fence);
+                for (Character c : banished) if (fence.test(c)) c.changeMapBanish(monster.getBanish());
             }
         };
 
@@ -230,6 +244,7 @@ public class MobSkill {
                     stats.put(MonsterStatus.MAGIC_IMMUNITY, x);
                 }
             }
+            case HARD_SKIN -> stats.put(MonsterStatus.HARD_SKIN,x);
             case PHYSICAL_COUNTER -> {
                 stats.put(MonsterStatus.WEAPON_REFLECT, 10);
                 stats.put(MonsterStatus.WEAPON_IMMUNITY, 10);
@@ -276,7 +291,7 @@ public class MobSkill {
     private void applyDispelEffect(boolean skill, Monster monster, Character player) {
         if (lt != null && rb != null && skill) {
             getPlayersInRange(monster).forEach(Character::dispel);
-        } else {
+        } else if (allowed(player)) {
             player.dispel();
         }
     }
@@ -285,7 +300,7 @@ public class MobSkill {
                                    List<Character> banishPlayersOutput) {
         if (lt != null && rb != null && skill) {
             banishPlayersOutput.addAll(getPlayersInRange(monster));
-        } else {
+        } else if (allowed(player)) {
             banishPlayersOutput.add(player);
         }
     }
@@ -293,7 +308,7 @@ public class MobSkill {
     private void spawnMonsterMist(Monster monster) {
         Rectangle mistArea = calculateBoundingBox(monster.getPosition());
         var mist = new Mist(mistArea, monster, this);
-        int mistDuration = x * 100;
+        int mistDuration = (int)Math.min(Integer.MAX_VALUE,Math.max(0,getDuration()));
         monster.getMap().spawnMist(mist, mistDuration, false, false, false);
     }
 
@@ -315,6 +330,8 @@ public class MobSkill {
                 for (Integer mobId : summons.subList(0, summonLimit)) {
                     Monster toSpawn = LifeFactory.getMonster(mobId);
                     if (toSpawn != null) {
+                        toSpawn.inheritEncounter(monster);
+                        toSpawn.setParentMobOid(monster.getObjectId());
                         if (bossRushMap) {
                             toSpawn.disableDrops();  // no littering on BRPQ pls
                         }
@@ -396,13 +413,13 @@ public class MobSkill {
                     }
                 }
             }
-        } else {
+        } else if (allowed(player)) {
             player.giveDebuff(disease, this);
         }
     }
 
     private List<Character> getPlayersInRange(Monster monster) {
-        return monster.getMap().getPlayersInRange(calculateBoundingBox(monster.getPosition()));
+        return monster.getMap().getPlayersInRange(calculateBoundingBox(monster.getPosition())).stream().filter(MobSkill::allowed).toList();
     }
 
     public MobSkillId getId() {

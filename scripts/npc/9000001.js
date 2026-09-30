@@ -55,13 +55,7 @@ function action(mode, type, selection) {
                 cm.sendSimple("There are many games for this event. It will help you a lot to know how to play the game before you play it. Choose the one you want to know more of! #b\r\n#L0# Ola Ola#l\r\n#L1# MapleStory Maple Physical Fitness Test#l\r\n#L2# Snow Ball#l\r\n#L3# Coconut Harvest#l\r\n#L4# OX Quiz#l\r\n#L5# Treasure Hunt#l#k");
             } else if (selection == 2) {
                 if (cm.getEvent() != null && cm.getEvent().getLimit() > 0) {
-                    cm.getPlayer().saveLocation("EVENT");
-                    if (cm.getEvent().getMapId() == 109080000 || cm.getEvent().getMapId() == 109060001) {
-                        cm.divideTeams();
-                    }
-
-                    cm.getEvent().minusLimit();
-                    cm.warp(cm.getEvent().getMapId(), 0);
+                    cm.sendOk(cm.joinGmEvent());
                     cm.dispose();
                 } else {
                     cm.sendNext("Either the event has not been started, you already have the #bScroll of Secrets#k, or you have already participated in this event within the last 24 hours. Please try again later!");

@@ -118,6 +118,7 @@ public class MapleMap {
     private final AtomicInteger spawnedMonstersOnMap = new AtomicInteger(0);
     private final AtomicInteger droppedItemCount = new AtomicInteger(0);
     private final Collection<Character> characters = new LinkedHashSet<>();
+    private volatile Collection<Character> characterSnapshot;
     private final Map<Integer, Set<Integer>> mapParty = new LinkedHashMap<>();
     private final Map<Integer, Portal> portals = new HashMap<>();
     private final Map<Integer, Integer> backgroundTypes = new HashMap<>();
@@ -488,6 +489,9 @@ public class MapleMap {
     }
 
     public void removeMapObject(int num) {
+        MapObject removing = getMapObject(num);
+        if (removing instanceof Monster monster && monster.isAlive())
+            soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.removed(monster,false);
         objectWLock.lock();
         try {
             this.mapobjects.remove(num);
@@ -670,7 +674,7 @@ public class MapleMap {
 
         for (final MonsterDropEntry de : dropEntry) {
             float cardRate = chr.getCardRate(de.itemId);
-            int dropChance = (int) Math.min((float) de.chance * chRate * cardRate, Integer.MAX_VALUE);
+            int dropChance = (int) Math.min((float) de.chance * chRate * cardRate * server.pccafe.PcCafe.dropMultiplier(chr) * server.content.FamilyBenefits.dropMultiplier(chr), Integer.MAX_VALUE);
 
             if (Randomizer.nextInt(999999) < dropChance) {
                 if (droptype == 3) {
@@ -1313,7 +1317,8 @@ public class MapleMap {
             for (MapObject object : chr.getMap().getMapObjects()) {
                 Monster mons = chr.getMap().getMonsterByOid(object.getObjectId());
                 if (mons != null) {
-                    if (mons.getId() >= MobId.ZAKUM_ARM_1 && mons.getId() <= MobId.ZAKUM_ARM_8) {
+                    if (mons.getId() >= MobId.ZAKUM_ARM_1 && mons.getId() <= MobId.ZAKUM_ARM_8
+                            && mons.getEncounterId() == monster.getEncounterId()) {
                         return true;
                     }
                 }
@@ -1323,7 +1328,10 @@ public class MapleMap {
             return false;
         }
 
+        server.partyquest.Pyramid survival = chr.getPartyQuest() instanceof server.partyquest.Pyramid pq ? pq : null;
+        if (survival != null && survival.blockAttack(chr, monster, damage)) return true;
         boolean killed = monster.damage(chr, damage, false);
+        if (killed && survival != null) survival.killed(chr, monster, damage);
 
         selfDestruction selfDestr = monster.getStats().selfDestruction();
         if (selfDestr != null && selfDestr.getHp() > -1) {// should work ;p
@@ -1385,6 +1393,8 @@ public class MapleMap {
         }
 
         if (chr == null) {
+            soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.removed(monster,false);
+            server.events.gm.IncidentService.getInstance().monsterRemoved(monster,false);
             if (removeKilledMonsterObject(monster)) {
                 monster.dispatchMonsterKilled(false);
                 broadcastMessage(PacketCreator.killMonster(monster.getObjectId(), animation), monster.getPosition());
@@ -1393,6 +1403,7 @@ public class MapleMap {
             return;
         }
 
+        final boolean legitimateBossDeath = monster.getHp() == 0;
         if (!removeKilledMonsterObject(monster)) {
             return;
         }
@@ -1433,7 +1444,7 @@ public class MapleMap {
                 for (MapObject object : objects) {
                     Monster mons = getMonsterByOid(object.getObjectId());
                     if (mons != null) {
-                        if (MobId.isZakumArm(mons.getId())) {
+                        if (MobId.isZakumArm(mons.getId()) && mons.getEncounterId()==monster.getEncounterId()) {
                             makeZakReal = false;
                             break;
                         }
@@ -1445,7 +1456,7 @@ public class MapleMap {
                     for (MapObject object : objects) {
                         Monster mons = map.getMonsterByOid(object.getObjectId());
                         if (mons != null) {
-                            if (mons.getId() == MobId.ZAKUM_1) {
+                            if (mons.getId() == MobId.ZAKUM_1 && mons.getEncounterId()==monster.getEncounterId()) {
                                 makeMonsterReal(mons);
                                 break;
                             }
@@ -1455,11 +1466,13 @@ public class MapleMap {
             }
 
             Character dropOwner = monster.killBy(chr);
+            server.trainer.TrainerService.getInstance().onMonsterKilled(chr, monster);
             if (withDrops && !monster.dropsDisabled()) {
                 if (dropOwner == null) {
                     dropOwner = chr;
                 }
                 dropFromMonster(dropOwner, monster, false, dropDelay);
+                server.pccafe.PcCafe.onKill(dropOwner, monster);
             }
 
             if (monster.hasBossHPBar()) {
@@ -1473,6 +1486,8 @@ public class MapleMap {
             e.printStackTrace();
         } finally {     // thanks resinate for pointing out a memory leak possibly from an exception thrown
             monster.dispatchMonsterKilled(true);
+            soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.removed(monster,legitimateBossDeath);
+            server.events.gm.IncidentService.getInstance().monsterRemoved(monster,legitimateBossDeath);
             broadcastMessage(PacketCreator.killMonster(monster.getObjectId(), animation), monster.getPosition());
         }
 
@@ -1862,6 +1877,17 @@ public class MapleMap {
         spawnFakeMonster(mob);
     }
 
+    /** Every arm belongs to this particular body, including ordinary reactor summons. */
+    public void spawnZakumOnGroundBelow(Point position) {
+        Monster body=LifeFactory.getMonster(8800000);
+        spawnFakeMonsterOnGroundBelow(body,position);
+        for(int id=8800003;id<=8800010;id++) {
+            Monster arm=LifeFactory.getMonster(id);
+            arm.inheritEncounter(body);
+            spawnMonsterOnGroundBelow(arm,position);
+        }
+    }
+
     public Point getGroundBelow(Point pos) {
         Point spos = new Point(pos.x, pos.y - 14); // Using -14 fixes spawning pets causing a lot of issues.
         spos = calcPointBelow(spos);
@@ -1874,6 +1900,7 @@ public class MapleMap {
     }
 
     public void spawnRevives(final Monster monster) {
+        if (!server.events.gm.IncidentService.getInstance().allowSpawn(this,monster)) return;
         monster.setMap(this);
         if (getEventInstance() != null) {
             getEventInstance().registerMonster(monster);
@@ -1887,6 +1914,7 @@ public class MapleMap {
         spawnedMonstersOnMap.incrementAndGet();
         addSelfDestructive(monster);
         applyRemoveAfter(monster);
+        server.events.gm.IncidentService.getInstance().monsterSpawned(monster);
     }
 
     private void applyRemoveAfter(final Monster monster) {
@@ -1969,6 +1997,7 @@ public class MapleMap {
     }
 
     public void spawnMonster(final Monster monster, int difficulty, boolean isPq) {
+        if (!server.events.gm.IncidentService.getInstance().allowSpawn(this,monster)) return;
         if (mobCapacity != -1 && mobCapacity == spawnedMonstersOnMap.get()) {
             return;//PyPQ
         }
@@ -2018,6 +2047,7 @@ public class MapleMap {
         spawnedMonstersOnMap.incrementAndGet();
         addSelfDestructive(monster);
         applyRemoveAfter(monster);  // thanks LightRyuzaki for pointing issues with spawned CWKPQ mobs not applying this
+        server.events.gm.IncidentService.getInstance().monsterSpawned(monster);
     }
 
     public void spawnDojoMonster(final Monster monster) {
@@ -2026,6 +2056,7 @@ public class MapleMap {
     }
 
     public void spawnMonsterWithEffect(final Monster monster, final int effect, Point pos) {
+        if (!server.events.gm.IncidentService.getInstance().allowSpawn(this,monster)) return;
         monster.setMap(this);
         Point spos = new Point(pos.x, pos.y - 1);
         spos = calcPointBelow(spos);
@@ -2049,15 +2080,18 @@ public class MapleMap {
         spawnedMonstersOnMap.incrementAndGet();
         addSelfDestructive(monster);
         applyRemoveAfter(monster);
+        server.events.gm.IncidentService.getInstance().monsterSpawned(monster);
     }
 
     public void spawnFakeMonster(final Monster monster) {
+        if (!server.events.gm.IncidentService.getInstance().allowSpawn(this,monster)) return;
         monster.setMap(this);
         monster.setFake(true);
         spawnAndAddRangedMapObject(monster, c -> c.sendPacket(PacketCreator.spawnFakeMonster(monster, 0)));
 
         spawnedMonstersOnMap.incrementAndGet();
         addSelfDestructive(monster);
+        server.events.gm.IncidentService.getInstance().monsterSpawned(monster);
     }
 
     public void makeMonsterReal(final Monster monster) {
@@ -2196,6 +2230,16 @@ public class MapleMap {
 
     public final MapItem spawnItemDropNoExpire(final MapObject dropper, final Character owner, final Item item, Point pos,
                                     final boolean ffaDrop, final boolean playerDrop) {
+        return spawnItemDropNoExpire(dropper, owner, item, pos, ffaDrop, playerDrop, null, null, Long.MAX_VALUE);
+    }
+
+    /** Venue IDs are attached before any client can see or pick up this drop. */
+    public final MapItem spawnItemDropNoExpire(final MapObject dropper, final Character owner,
+                                    final Item item, Point pos, final boolean ffaDrop,
+                                    final boolean playerDrop, final java.util.UUID venueRoundId,
+                                    final java.util.UUID venueAssetId, final long pickupExpiresAt) {
+        if ((venueRoundId == null) != (venueAssetId == null))
+            throw new IllegalArgumentException("venue drop identity");
         if (FieldLimit.DROP_LIMIT.check(this.getFieldLimit())) {
             this.disappearingItemDrop(dropper, owner, item, pos);
             return null;
@@ -2203,6 +2247,8 @@ public class MapleMap {
 
         final Point droppos = calcDropPos(pos, pos);
         final MapItem mdrop = new MapItem(item, droppos, dropper, owner, owner.getClient(), (byte) (ffaDrop ? 2 : 0), playerDrop);
+        if (venueRoundId != null) mdrop.markVenueAsset(venueRoundId, venueAssetId);
+        mdrop.setPickupExpiresAt(pickupExpiresAt);
         mdrop.setDropTime(Server.getInstance().getCurrentTime());
 
         spawnAndAddRangedMapObject(mdrop, c -> {
@@ -2410,6 +2456,7 @@ public class MapleMap {
         chrWLock.lock();
         try {
             characters.add(chr);
+            characterSnapshot=null;
             chrSize = characters.size();
 
             if (party != null && party.getMemberById(chr.getId()) != null) {
@@ -2622,6 +2669,7 @@ public class MapleMap {
         if (chr.getOla() != null && chr.getOla().isTimerStarted()) {
             chr.sendPacket(PacketCreator.getClock((int) (chr.getOla().getTimeLeft() / 1000)));
         }
+        server.events.gm.GmEventService.getInstance().sendClock(chr);
 
         if (mapid == MapId.EVENT_SNOWBALL) {
             chr.sendPacket(PacketCreator.rollSnowBall(true, 0, null, null));
@@ -2641,6 +2689,11 @@ public class MapleMap {
 
         chr.receivePartyMemberHP();
         announcePlayerDiseases(chr.getClient());
+        // Headless actors have no client map-load acknowledgement. Their canonical
+        // entry is complete here, after membership, objects and effects are installed.
+        if (isBot(chr)) {
+            chr.setMapTransitionComplete();
+        }
     }
 
     private static void announcePlayerDiseases(final Client c) {
@@ -2736,6 +2789,7 @@ public class MapleMap {
             }
 
             characters.remove(chr);
+            characterSnapshot=null;
         } finally {
             chrWLock.unlock();
         }
@@ -3244,7 +3298,12 @@ public class MapleMap {
     public Collection<Character> getCharacters() {
         chrRLock.lock();
         try {
-            return Collections.unmodifiableCollection(this.characters);
+            Collection<Character> snapshot=characterSnapshot;
+            if(snapshot==null) {
+                snapshot=Collections.unmodifiableList(new ArrayList<>(characters));
+                characterSnapshot=snapshot;
+            }
+            return snapshot;
         } finally {
             chrRLock.unlock();
         }
@@ -3696,8 +3755,8 @@ public class MapleMap {
     }
 
     private static double getCurrentSpawnRate(int numPlayers) {
-        // SoloMapling experiment: halved density, 2x pass rate — see Fable Plan 2026-07-07
-        return 0.35 + (0.025 * Math.min(6, numPlayers));
+        // Restore the unmodified Cosmic/HeavenMS v83 emulator population target.
+        return 0.70 + (0.05 * Math.min(6, numPlayers));
     }
 
     private int getNumShouldSpawn(int numPlayers) {
@@ -4024,25 +4083,7 @@ public class MapleMap {
     }
 
     public void startEvent(final Character chr) {
-        if (this.mapid == MapId.EVENT_COCONUT_HARVEST && getCoconut() == null) {
-            setCoconut(new Coconut(this));
-            coconut.startEvent();
-        } else if (this.mapid == MapId.EVENT_PHYSICAL_FITNESS) {
-            chr.setFitness(new Fitness(chr));
-            chr.getFitness().startFitness();
-        } else if (this.mapid == MapId.EVENT_OLA_OLA_1 || this.mapid == MapId.EVENT_OLA_OLA_2 ||
-                this.mapid == MapId.EVENT_OLA_OLA_3 || this.mapid == MapId.EVENT_OLA_OLA_4) {
-            chr.setOla(new Ola(chr));
-            chr.getOla().startOla();
-        } else if (this.mapid == MapId.EVENT_OX_QUIZ && getOx() == null) {
-            setOx(new OxQuiz(this));
-            getOx().sendQuestion();
-            setOxQuiz(true);
-        } else if (this.mapid == MapId.EVENT_SNOWBALL && getSnowball(chr.getTeam()) == null) {
-            setSnowball(0, new Snowball(0, this));
-            setSnowball(1, new Snowball(1, this));
-            getSnowball(chr.getTeam()).startEvent();
-        }
+        chr.dropMessage(5,server.events.gm.GmEventService.getInstance().start(chr));
     }
 
     public boolean eventStarted() {
@@ -4174,11 +4215,21 @@ public class MapleMap {
         return true;
     }
 
+    public boolean isHorntailDefeated(long encounterId) {
+        var owned=getAllMonsters().stream().filter(m->m.getEncounterId()==encounterId).toList();
+        for(int id=MobId.DEAD_HORNTAIL_MIN;id<=MobId.DEAD_HORNTAIL_MAX;id++) {
+            final int template=id;
+            if(owned.stream().noneMatch(m->m.getId()==template)) return false;
+        }
+        return true;
+    }
     public void spawnHorntailOnGroundBelow(final Point targetPoint) {   // ayy lmao
         Monster htIntro = LifeFactory.getMonster(MobId.SUMMON_HORNTAIL);
+        htIntro.setEncounterIntro();
         spawnMonsterOnGroundBelow(htIntro, targetPoint);    // htintro spawn animation converting into horntail detected thanks to Arnah
 
         final Monster ht = LifeFactory.getMonster(MobId.HORNTAIL);
+        ht.inheritEncounter(htIntro);
         ht.setParentMobOid(htIntro.getObjectId());
         ht.addListener(new MonsterListener() {
             @Override
@@ -4199,6 +4250,7 @@ public class MapleMap {
 
         for (int mobId = MobId.HORNTAIL_HEAD_A; mobId <= MobId.HORNTAIL_TAIL; mobId++) {
             Monster m = LifeFactory.getMonster(mobId);
+            m.inheritEncounter(htIntro);
             m.setParentMobOid(htIntro.getObjectId());
 
             m.addListener(new MonsterListener() {

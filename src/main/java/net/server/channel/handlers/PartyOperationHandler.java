@@ -98,6 +98,9 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
                             party = player.getParty();
                         }
                         if (party.getMembers().size() < 6) {
+                            if (isBot(invited) && soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().directInvite(player, invited)) {
+                                break;
+                            }
                             if (InviteCoordinator.createInvite(InviteType.PARTY, player, party.getId(), invited.getId())) {
                                 invited.sendPacket(PacketCreator.partyInvite(player));
                                 if (isBot(invited)) {
@@ -124,7 +127,9 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
             }
             case 6: { // change leader
                 int newLeader = p.readInt();
+                if (party == null || party.getLeaderId() != player.getId()) return;
                 PartyCharacter newLeadr = party.getMemberById(newLeader);
+                if (newLeadr == null) return;
                 world.updateParty(party.getId(), PartyOperation.CHANGE_LEADER, newLeadr);
                 break;
             }

@@ -63,7 +63,7 @@ final class GCMovementSkills {
     // warp the bot there, and broadcast the blink. Returns false (caller walks) if nothing valid is in range.
     static boolean execTeleport(BotMovementState st, Character bot, int targetX, int targetY) {
         MapleMap map = bot.getMap();
-        if (map == null) {
+        if (map == null || server.maps.FieldLimit.MOVEMENTSKILLS.check(map.getFieldLimit())) {
             return false;
         }
         Point origin = bot.getPosition();
@@ -72,9 +72,13 @@ final class GCMovementSkills {
         }
         int dx = targetX - origin.x;
         int dy = targetY - origin.y;
+        boolean companion = soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot);
+        int range = companion ? Math.min(TELEPORT_RANGE_PX,
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionCombat.movementRange(bot)) : TELEPORT_RANGE_PX;
+        if (range <= 0) return false;
         Point dest;
         if (Math.abs(dx) >= Math.abs(dy)) {
-            dest = horizontalLanding(map, origin, dx >= 0 ? 1 : -1, TELEPORT_RANGE_PX, TELEPORT_Y_SNAP_PX);
+            dest = horizontalLanding(map, origin, dx >= 0 ? 1 : -1, range, TELEPORT_Y_SNAP_PX);
         } else if (dy > 0) {
             dest = downLanding(map, origin);
         } else {
@@ -83,6 +87,8 @@ final class GCMovementSkills {
         if (dest == null || (dest.x == origin.x && dest.y == origin.y)) {
             return false;
         }
+        if (companion && (Math.abs(dest.x - origin.x) > range || Math.abs(dest.y - origin.y) > range
+                || !soloMapling.ArtificialPlayer.CompanionSystem.CompanionCombat.spendMovement(bot, false))) return false;
         int hdir = dest.x >= origin.x ? 1 : -1;
         boolean downward = dest.y > origin.y + 8;
         int stance = downward ? proneStance(hdir) : standStance(hdir);
@@ -100,7 +106,7 @@ final class GCMovementSkills {
     // may downshift under it, never over it.
     static boolean execFlashJump(BotMovementState st, Character bot, int targetX, float scaleCap) {
         MapleMap map = bot.getMap();
-        if (map == null) {
+        if (map == null || server.maps.FieldLimit.MOVEMENTSKILLS.check(map.getFieldLimit())) {
             return false;
         }
         Point origin = bot.getPosition();
@@ -120,6 +126,8 @@ final class GCMovementSkills {
         // scaled impulse at the trigger point (apex for scale 1, part-way up for smaller); tickAirborne
         // broadcasts the type-6 "fj" frame; the physics engine carries the arc to a natural landing.
         // Faithful GreenCatMS flash jump — NOT an instant snap.
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)
+                && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionCombat.spendMovement(bot, true)) return false;
         BotMovementManager.initiateJump(st, bot, targetX - origin.x);
         st.flashJumpScale = scale;
         st.pendingFlashJump = true;

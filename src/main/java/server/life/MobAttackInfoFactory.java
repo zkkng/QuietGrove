@@ -35,7 +35,7 @@ import java.util.Map;
  * @author Danny (Leifde)
  */
 public class MobAttackInfoFactory {
-    private static final Map<String, MobAttackInfo> mobAttacks = new HashMap<>();
+    private static final Map<String, MobAttackInfo> mobAttacks = new java.util.concurrent.ConcurrentHashMap<>();
     private static final DataProvider dataSource = DataProviderFactory.getDataProvider(WZFiles.MOB);
 
     public static MobAttackInfo getMobAttackInfo(Monster mob, int attack) {
@@ -49,7 +49,7 @@ public class MobAttackInfoFactory {
                 Data mobData = dataSource.getData(StringUtil.getLeftPaddedStr(mob.getId() + ".img", '0', 11));
                 if (mobData != null) {
 //					MapleData infoData = mobData.getChildByPath("info");
-                    String linkedmob = DataTool.getString("link", mobData, "");
+                    String linkedmob = DataTool.getString("info/link", mobData, "");
                     if (!linkedmob.equals("")) {
                         mobData = dataSource.getData(StringUtil.getLeftPaddedStr(linkedmob + ".img", '0', 11));
                     }
@@ -70,8 +70,14 @@ public class MobAttackInfoFactory {
                     ret.setDiseaseSkill(disease);
                     ret.setDiseaseLevel(level);
                     ret.setMpCon(mpCon);
+                    ret.setRange(DataTool.getPoint("range/lt", attackData, null), DataTool.getPoint("range/rb", attackData, null));
+                    ret.setAttackDelay(DataTool.getInt("attackAfter", attackData, 0));
+                    ret.setMagic(DataTool.getInt("magic", attackData, 0) != 0 || DataTool.getInt("MADamage",attackData,0)>0);
+                    ret.setAttackPower(DataTool.getInt("PADamage",attackData,mob.getStats().getPADamage()),DataTool.getInt("MADamage",attackData,mob.getStats().getMADamage()));
+                    ret.setProjectile(DataTool.getInt("range/r",attackData,0),DataTool.getPoint("range/sp",attackData,null),DataTool.getInt("bulletSpeed",attackData,100));
+                    ret.setTargetCount(DataTool.getInt("count",attackData,1));
                 }
-                mobAttacks.put(mob.getId() + "" + attack, ret);
+                if (ret != null) mobAttacks.put(mob.getId() + "" + attack, ret);
             }
             return ret;
         }

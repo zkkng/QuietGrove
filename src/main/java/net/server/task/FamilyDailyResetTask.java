@@ -21,13 +21,13 @@ public class FamilyDailyResetTask implements Runnable {
 
     @Override
     public void run() {
-        resetEntitlementUsage(world);
+        if (!resetEntitlementUsage(world)) return;
         for (Family family : world.getFamilies()) {
             family.resetDailyReps();
         }
     }
 
-    public static void resetEntitlementUsage(World world) {
+    public static boolean resetEntitlementUsage(World world) {
         Calendar resetTime = Calendar.getInstance();
         resetTime.add(Calendar.MINUTE, 1); // to make sure that we're in the "next day", since this is called at midnight
         resetTime.set(Calendar.HOUR_OF_DAY, 0);
@@ -35,20 +35,30 @@ public class FamilyDailyResetTask implements Runnable {
         resetTime.set(Calendar.SECOND, 0);
         resetTime.set(Calendar.MILLISECOND, 0);
         try (Connection con = DatabaseConnection.getConnection()) {
-            try (PreparedStatement ps = con.prepareStatement("UPDATE family_character SET todaysrep = 0, reptosenior = 0 WHERE lastresettime <= ?")) {
-                ps.setLong(1, resetTime.getTimeInMillis());
-                ps.executeUpdate();
+            boolean autoCommit = con.getAutoCommit();
+            try {
+                con.setAutoCommit(false);
+                try (PreparedStatement ps = con.prepareStatement("UPDATE family_character SET todaysrep = 0, reptosenior = 0 WHERE lastresettime <= ?")) {
+                    ps.setLong(1, resetTime.getTimeInMillis());
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = con.prepareStatement("DELETE FROM family_entitlement WHERE timestamp <= ?")) {
+                    ps.setLong(1, resetTime.getTimeInMillis());
+                    ps.executeUpdate();
+                }
+                con.commit();
+                return true;
             } catch (SQLException e) {
-                log.error("Could not reset daily rep for families", e);
-            }
-            try (PreparedStatement ps = con.prepareStatement("DELETE FROM family_entitlement WHERE timestamp <= ?")) {
-                ps.setLong(1, resetTime.getTimeInMillis());
-                ps.executeUpdate();
-            } catch (SQLException e) {
-                log.error("Could not do daily reset for family entitlements", e);
+                try { con.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                log.error("Could not reset daily Family reputation and entitlements", e);
+                return false;
+            } finally {
+                try { con.setAutoCommit(autoCommit); }
+                catch (SQLException e) { log.warn("Could not restore Family reset connection state", e); }
             }
         } catch (SQLException e) {
             log.error("Could not get connection to DB", e);
+            return false;
         }
     }
 }

@@ -1072,7 +1072,7 @@ public class AbstractPlayerInteraction {
     }
 
     public Pyramid getPyramid() {
-        return (Pyramid) getPlayer().getPartyQuest();
+        return getPlayer().getPartyQuest() instanceof Pyramid pyramid ? pyramid : null;
     }
 
     public int createExpedition(ExpeditionType type) {
@@ -1089,6 +1089,7 @@ public class AbstractPlayerInteraction {
         }
 
         if (exped.addChannelExpedition(player.getClient().getChannelServer())) {
+            soloMapling.ArtificialPlayer.CompanionSystem.BossAccess.registerCompanions(exped);
             return 0;
         } else {
             return -1;
@@ -1101,7 +1102,9 @@ public class AbstractPlayerInteraction {
     }
 
     public Expedition getExpedition(ExpeditionType type) {
-        return getPlayer().getClient().getChannelServer().getExpedition(type);
+        Expedition expedition = getPlayer().getClient().getChannelServer().getExpedition(type);
+        if (expedition != null && expedition.isRegistering()) soloMapling.ArtificialPlayer.CompanionSystem.BossAccess.registerCompanions(expedition);
+        return expedition;
     }
 
     public String getExpeditionMemberNames(ExpeditionType type) {

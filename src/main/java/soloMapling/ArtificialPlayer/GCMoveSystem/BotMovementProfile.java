@@ -60,6 +60,8 @@ record BotMovementProfile(int totalSpeedStat, int totalJumpStat, boolean snowSho
         if (hasForcedBaseMovementStats(character)) {
             return BASE;
         }
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared().eventLease(character.getId()).isPresent())
+            return new BotMovementProfile(character.getTotalMoveSpeedStat(),character.getTotalJumpStat(),wearsSnowShoes(character));
         // SoloMapling: scale the walk-speed / jump baseline by bot level AND class so higher-level and
         // Haste-class (thief) bots roam faster and jump higher. The baseline replaces the flat 100; any
         // equip/real-buff speed/jump (getTotal*Stat - 100) still stacks on top. Bucketed to the nearest 5

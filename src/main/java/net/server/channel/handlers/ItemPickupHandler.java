@@ -27,7 +27,10 @@ import net.AbstractPacketHandler;
 import net.packet.InPacket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import server.maps.MapItem;
+import server.maps.MapleMap;
 import server.maps.MapObject;
+import server.trainer.TrainerBotReactions;
 
 import java.awt.*;
 
@@ -45,7 +48,9 @@ public final class ItemPickupHandler extends AbstractPacketHandler {
         p.readPos(); //cpos
         int oid = p.readInt();
         Character chr = c.getPlayer();
-        MapObject ob = chr.getMap().getMapObject(oid);
+        server.trainer.TrainerService.getInstance().onLootButton(chr);
+        MapleMap pickupMap = chr.getMap();
+        MapObject ob = pickupMap.getMapObject(oid);
         if (ob == null) {
             return;
         }
@@ -58,6 +63,22 @@ public final class ItemPickupHandler extends AbstractPacketHandler {
             return;
         }
 
-        chr.pickupItem(ob);
+        boolean committed = false;
+        if (ob instanceof MapItem item) {
+            item.lockItem();
+            try {
+                boolean alreadyPickedUp = item.isPickedUp();
+                chr.pickupItem(item);
+                committed = !alreadyPickedUp && item.isPickedUp()
+                        && item.getCollectedByCharacterId() == chr.getId();
+            } finally { item.unlockItem(); }
+        } else chr.pickupItem(ob);
+        if (committed && ob instanceof MapItem item) {
+            try { TrainerBotReactions.onCommittedPickup(chr, pickupMap, item, obPos); }
+            catch (RuntimeException reactionFailure) {
+                log.warn("Bot reaction failed after pickup character={} item={}",
+                        chr.getName(), item.getItemId(), reactionFailure);
+            }
+        }
     }
 }

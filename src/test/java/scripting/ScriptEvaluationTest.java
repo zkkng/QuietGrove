@@ -1,6 +1,8 @@
 package scripting;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import com.oracle.truffle.js.scriptengine.GraalJSScriptEngine;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -14,6 +16,11 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ScriptEvaluationTest {
+    private ScriptEngine currentEngine;
+    @AfterEach
+    void closeEngine() {
+        if (currentEngine instanceof GraalJSScriptEngine graal) graal.close();
+    }
     private AbstractScriptManager scriptManager = new AbstractScriptManager() {};
 
     @BeforeAll
@@ -50,7 +57,8 @@ public class ScriptEvaluationTest {
         try (Stream<Path> pathStream = Files.walk(scriptDirectory)) {
             return pathStream
                     .filter(Files::isRegularFile)
-                    .map(path -> "%s/%s".formatted(scriptsSubdirectory, path.getFileName().toString()))
+                    .filter(path -> path.toString().endsWith(".js"))
+                    .map(path -> "%s/%s".formatted(scriptsSubdirectory, scriptDirectory.relativize(path).toString().replace("\\", "/")))
                     .toList();
         }
     }
@@ -58,7 +66,7 @@ public class ScriptEvaluationTest {
     @ParameterizedTest
     @MethodSource("eventScriptFilePaths")
     void eventScriptShouldEvaluate(String eventScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(eventScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(eventScriptPath);
 
         assertNotNull(scriptEngine);
     }
@@ -66,7 +74,7 @@ public class ScriptEvaluationTest {
     @ParameterizedTest
     @MethodSource("itemScriptFilePaths")
     void itemScriptShouldEvaluate(String itemScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(itemScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(itemScriptPath);
 
         assertNotNull(scriptEngine);
     }
@@ -74,15 +82,15 @@ public class ScriptEvaluationTest {
     @ParameterizedTest
     @MethodSource("npcScriptFilePaths")
     void npcScriptShouldEvaluate(String npcScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(npcScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(npcScriptPath);
 
-        assertNotNull(scriptEngine);
+        assertNotNull(scriptEngine, npcScriptPath);
     }
 
     @ParameterizedTest
     @MethodSource("portalScriptFilePaths")
     void portalScriptShouldEvaluate(String portalScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(portalScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(portalScriptPath);
 
         assertNotNull(scriptEngine);
     }
@@ -90,7 +98,7 @@ public class ScriptEvaluationTest {
     @ParameterizedTest
     @MethodSource("questScriptFilePaths")
     void questScriptShouldEvaluate(String questScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(questScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(questScriptPath);
 
         assertNotNull(scriptEngine);
     }
@@ -98,7 +106,7 @@ public class ScriptEvaluationTest {
     @ParameterizedTest
     @MethodSource("reactorScriptFilePaths")
     void reactorScriptShouldEvaluate(String reactorScriptPath) {
-        ScriptEngine scriptEngine = scriptManager.getInvocableScriptEngine(reactorScriptPath);
+        ScriptEngine scriptEngine = currentEngine = scriptManager.getInvocableScriptEngine(reactorScriptPath);
 
         assertNotNull(scriptEngine);
     }

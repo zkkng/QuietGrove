@@ -74,7 +74,9 @@ public final class NPCTalkHandler extends AbstractPacketHandler {
                     boolean hasNpcScript = NPCScriptManager.getInstance().start(c, npc.getId(), oid, null);
                     if (!hasNpcScript) {
                         if (!npc.hasShop()) {
-                            log.warn("NPC {} ({}) is not coded", npc.getName(), npc.getId());
+                            // Quest-only and flavor NPCs still need a normal-click response.
+                            NPCScriptManager.getInstance().start(c, npc.getId(), "default_dialogue", null);
+                            c.sendPacket(PacketCreator.enableActions());
                             return;
                         } else if (c.getPlayer().getShop() != null) {
                             c.sendPacket(PacketCreator.enableActions());

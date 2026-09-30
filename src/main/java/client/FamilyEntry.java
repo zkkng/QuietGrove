@@ -264,14 +264,14 @@ public class FamilyEntry {
         return todaysRep;
     }
 
-    public void setReputation(int reputation) {
+    public synchronized void setReputation(int reputation) {
         if (reputation != this.reputation) {
             this.repChanged = true;
         }
         this.reputation = reputation;
     }
 
-    public void setTodaysRep(int today) {
+    public synchronized void setTodaysRep(int today) {
         if (today != todaysRep) {
             this.repChanged = true;
         }
@@ -282,7 +282,7 @@ public class FamilyEntry {
         return repsToSenior;
     }
 
-    public void setRepsToSenior(int reputation) {
+    public synchronized void setRepsToSenior(int reputation) {
         if (reputation != this.repsToSenior) {
             this.repChanged = true;
         }
@@ -293,7 +293,7 @@ public class FamilyEntry {
         gainReputation(gain, countTowardsTotal, this);
     }
 
-    private void gainReputation(int gain, boolean countTowardsTotal, FamilyEntry from) {
+    private synchronized void gainReputation(int gain, boolean countTowardsTotal, FamilyEntry from) {
         if (gain != 0) {
             repChanged = true;
         }
@@ -317,8 +317,10 @@ public class FamilyEntry {
         if (senior != null) {
             senior.gainReputation(actualGain, true, this);
             if (actualGain > 0) {
-                this.repsToSenior += actualGain;
-                this.repChanged = true;
+                synchronized (this) {
+                    this.repsToSenior += actualGain;
+                    this.repChanged = true;
+                }
             }
             if (includeSuperSenior) {
                 senior = senior.getSenior();
@@ -333,7 +335,7 @@ public class FamilyEntry {
         return totalReputation;
     }
 
-    public void setTotalReputation(int totalReputation) {
+    public synchronized void setTotalReputation(int totalReputation) {
         if (totalReputation != this.totalReputation) {
             this.repChanged = true;
         }
@@ -535,7 +537,7 @@ public class FamilyEntry {
         return new Pair<>(highestGeneration, juniorCount); //creating new objects to return is a bit inefficient, but cleaner than packing into a long
     }
 
-    public boolean useEntitlement(FamilyEntitlement entitlement) {
+    public synchronized boolean useEntitlement(FamilyEntitlement entitlement) {
         int id = entitlement.ordinal();
         if (entitlements[id] >= 1) {
             return false;
@@ -547,9 +549,60 @@ public class FamilyEntry {
             ps.executeUpdate();
         } catch (SQLException e) {
             log.error("Could not insert new row in 'family_entitlement' for chr {}", getName(), e);
+            return false;
         }
         entitlements[id]++;
         return true;
+    }
+
+    /** Saves a timed Family benefit and its reputation cost in one transaction. */
+    public synchronized boolean purchaseBenefit(FamilyEntitlement entitlement) {
+        int id = entitlement.ordinal();
+        int cost = entitlement.getRepCost();
+        if (entitlements[id] >= entitlement.getUsageLimit() || reputation < cost) return false;
+
+        try (Connection con = DatabaseConnection.getConnection()) {
+            boolean autoCommit = con.getAutoCommit();
+            try {
+                con.setAutoCommit(false);
+                try (PreparedStatement rep = con.prepareStatement(
+                        "UPDATE family_character SET reputation = ?, todaysrep = ?, totalreputation = ?, reptosenior = ? WHERE cid = ?")) {
+                    rep.setInt(1, reputation - cost);
+                    rep.setInt(2, todaysRep - cost);
+                    rep.setInt(3, totalReputation);
+                    rep.setInt(4, repsToSenior);
+                    rep.setInt(5, getChrId());
+                    if (rep.executeUpdate() != 1) {
+                        con.rollback();
+                        return false;
+                    }
+                }
+                try (PreparedStatement usage = con.prepareStatement(
+                        "INSERT INTO family_entitlement (entitlementid, charid, timestamp) VALUES (?, ?, ?)")) {
+                    usage.setInt(1, id);
+                    usage.setInt(2, getChrId());
+                    usage.setLong(3, System.currentTimeMillis());
+                    if (usage.executeUpdate() != 1) {
+                        con.rollback();
+                        return false;
+                    }
+                }
+                con.commit();
+                gainReputation(-cost, false);
+                entitlements[id]++;
+                return true;
+            } catch (SQLException e) {
+                try { con.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                log.error("Could not purchase Family benefit for chr {}", getChrId(), e);
+                return false;
+            } finally {
+                try { con.setAutoCommit(autoCommit); }
+                catch (SQLException e) { log.error("Could not restore Family connection state for chr {}", getChrId(), e); }
+            }
+        } catch (SQLException e) {
+            log.error("Could not open Family benefit transaction for chr {}", getChrId(), e);
+            return false;
+        }
     }
 
     public boolean refundEntitlement(FamilyEntitlement entitlement) {
@@ -565,55 +618,74 @@ public class FamilyEntry {
         return true;
     }
 
-    public boolean isEntitlementUsed(FamilyEntitlement entitlement) {
+    public synchronized boolean isEntitlementUsed(FamilyEntitlement entitlement) {
         return entitlements[entitlement.ordinal()] >= 1;
     }
 
-    public int getEntitlementUsageCount(FamilyEntitlement entitlement) {
+    public synchronized int getEntitlementUsageCount(FamilyEntitlement entitlement) {
         return entitlements[entitlement.ordinal()];
     }
 
-    public void setEntitlementUsed(int id) {
+    public synchronized void setEntitlementUsed(int id) {
         entitlements[id]++;
     }
 
-    public void resetEntitlementUsages() {
+    public synchronized void resetEntitlementUsages() {
         for (FamilyEntitlement entitlement : FamilyEntitlement.values()) {
             entitlements[entitlement.ordinal()] = 0;
         }
     }
 
-    public boolean saveReputation() {
-        if (!repChanged) {
-            return true;
-        }
-        try (Connection con = DatabaseConnection.getConnection()) {
-            return saveReputation(con);
-        } catch (SQLException e) {
-            log.error("Could not get connection to DB while saving reputation", e);
-            return false;
-        }
-    }
+    public record ReputationSnapshot(int reputation, int todaysRep, int totalReputation, int repsToSenior) {}
 
-    public boolean saveReputation(Connection con) {
-        if (!repChanged) {
-            return true;
-        }
+    /** Return the values written so the caller can acknowledge them only after commit. */
+    public synchronized ReputationSnapshot saveReputationSnapshot(Connection con) throws SQLException {
+        if (!repChanged) return null;
+        ReputationSnapshot snapshot = new ReputationSnapshot(reputation, todaysRep, totalReputation, repsToSenior);
         try (PreparedStatement ps = con.prepareStatement("UPDATE family_character SET reputation = ?, todaysrep = ?, totalreputation = ?, reptosenior = ? WHERE cid = ?")) {
-            ps.setInt(1, getReputation());
-            ps.setInt(2, getTodaysRep());
-            ps.setInt(3, getTotalReputation());
-            ps.setInt(4, getRepsToSenior());
+            ps.setInt(1, snapshot.reputation());
+            ps.setInt(2, snapshot.todaysRep());
+            ps.setInt(3, snapshot.totalReputation());
+            ps.setInt(4, snapshot.repsToSenior());
             ps.setInt(5, getChrId());
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Failed to autosave rep to 'family_character' for chrId {}", getChrId(), e);
-            return false;
+            if (ps.executeUpdate() == 0) {
+                // Some JDBC configurations count changed rows, not matched rows.
+                try (PreparedStatement exists = con.prepareStatement("SELECT 1 FROM family_character WHERE cid = ?")) {
+                    exists.setInt(1, getChrId());
+                    try (var rows = exists.executeQuery()) {
+                        if (!rows.next()) throw new SQLException("Missing Family reputation row for " + getChrId());
+                    }
+                }
+            }
         }
-        return true;
+        return snapshot;
     }
 
-    public void savedSuccessfully() {
-        this.repChanged = false;
+    public synchronized void savedSuccessfully(ReputationSnapshot snapshot) {
+        if (snapshot != null && reputation == snapshot.reputation() && todaysRep == snapshot.todaysRep()
+                && totalReputation == snapshot.totalReputation() && repsToSenior == snapshot.repsToSenior()) {
+            repChanged = false;
+        }
+    }
+
+    public boolean saveReputation() {
+        try (Connection con = DatabaseConnection.getConnection()) {
+            boolean autoCommit = con.getAutoCommit();
+            try {
+                con.setAutoCommit(false);
+                ReputationSnapshot snapshot = saveReputationSnapshot(con);
+                con.commit();
+                savedSuccessfully(snapshot);
+                return true;
+            } catch (SQLException e) {
+                try { con.rollback(); } catch (SQLException rollbackError) { e.addSuppressed(rollbackError); }
+                throw e;
+            } finally {
+                con.setAutoCommit(autoCommit);
+            }
+        } catch (SQLException e) {
+            log.error("Could not save Family reputation for chrId {}", getChrId(), e);
+            return false;
+        }
     }
 }

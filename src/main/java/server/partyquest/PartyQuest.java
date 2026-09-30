@@ -42,6 +42,8 @@ public class PartyQuest {
     Party party;
     List<Character> participants = new ArrayList<>();
 
+    protected PartyQuest(List<Character> players) { participants = new java.util.concurrent.CopyOnWriteArrayList<>(players); }
+
     public PartyQuest(Party party) {
         this.party = party;
         PartyCharacter leader = party.getLeader();

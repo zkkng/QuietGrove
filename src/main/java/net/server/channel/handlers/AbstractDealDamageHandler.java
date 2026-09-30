@@ -124,6 +124,9 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
         public Point position = new Point();
         public List<Integer> explodedMesos;
         public Short attackDelay;
+        public long trainerMaxDamage;
+        public int trainerProjectile;
+        public boolean trainerAccepted;
 
         public StatEffect getAttackEffect(Character chr, Skill theSkill) {
             Skill mySkill = theSkill;
@@ -153,7 +156,9 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
     public record AttackTarget(short delay, List<Integer> damageLines) {}
 
     protected void applyAttack(AttackInfo attack, final Character player, int attackCount) {
+        attack.trainerAccepted = false;
         final MapleMap map = player.getMap();
+        boolean trainerCostsApplied = attack.skill == 0;
         if (map.isOwnershipRestricted(player)) {
             return;
         }
@@ -163,6 +168,11 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
         final int job = player.getJob().getId();
         try {
             if (player.isBanned()) {
+                return;
+            }
+            if (attack.skill % 10000000 == 1020) {
+                if (player.getPartyQuest() instanceof server.partyquest.Pyramid pq) pq.useSkill(player);
+                player.sendPacket(PacketCreator.enableActions());
                 return;
             }
             if (attack.skill != 0) {
@@ -186,9 +196,9 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                             // prevent cygnus FA refreshing
                             mobCount = 15;
                         } else if (attack.skill == NightWalker.POISON_BOMB) {// Poison Bomb
-                            attackEffect.applyTo(player, new Point(attack.position.x, attack.position.y));
+                            trainerCostsApplied = attackEffect.applyTo(player, new Point(attack.position.x, attack.position.y));
                         } else {
-                            attackEffect.applyTo(player);
+                            trainerCostsApplied = attackEffect.applyTo(player);
 
                             if (attack.skill == Page.FINAL_ATTACK_BW || attack.skill == Page.FINAL_ATTACK_SWORD || attack.skill == Fighter.FINAL_ATTACK_SWORD
                                     || attack.skill == Fighter.FINAL_ATTACK_AXE || attack.skill == Spearman.FINAL_ATTACK_SPEAR || attack.skill == Spearman.FINAL_ATTACK_POLEARM
@@ -540,6 +550,12 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                     }
                 }
             }
+            // One accepted-action seam shared by melee/ranged/magic. Failed costs,
+            // early rejects and partial exceptions never trigger extra trainer targets.
+            if (trainerCostsApplied && player.isAlive() && !player.isBanned() && player.getMap() == map) {
+                attack.trainerAccepted = true;
+                server.trainer.TrainerService.getInstance().onAcceptedAttack(player, attack, attackCount);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -753,6 +769,9 @@ public abstract class AbstractDealDamageHandler extends AbstractPacketHandler {
                 calcDmgMax = fixed;
             }
         }
+        // Preserve the same parsed character/skill damage ceiling for trainer FMA
+        // when the real client swing contains no local monster target.
+        ret.trainerMaxDamage = calcDmgMax;
         for (int i = 0; i < ret.numAttacked; i++) {
             int oid = p.readInt();
             p.skip(4);

@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "ws1-fixture-v1",
+  "epoch": "isolated-fixture",
+  "fixture": true,
+  "generatedAt": "2026-09-30T00:00:06Z",
+  "dataThrough": "2026-09-30T00:00:05Z",
+  "trackingStartedAt": "2026-09-30T00:00:00Z",
+  "definitionVersion": 1,
+  "catalogVersion": "ws1-fixture-catalog-v1",
+  "coverage": {
+    "state": "complete",
+    "sourceCoverage": "isolated-synthetic-fixture",
+    "gaps": []
+  },
+  "scope": {
+    "world": "all",
+    "population": "all",
+    "assistance": "all"
+  },
+  "period": {
+    "kind": "since_start",
+    "from": "2026-09-30T00:00:00Z",
+    "to": "2026-09-30T00:00:05Z"
+  },
+  "shards": {
+    "catalog": {
+      "path": "shards/2e338b6b778b51d0f3278554bab78f50f690723895fa0a6efb6bbe21130d6dc9.json",
+      "sha256": "2e338b6b778b51d0f3278554bab78f50f690723895fa0a6efb6bbe21130d6dc9",
+      "bytes": 3349,
+      "metricId": null,
+      "projection": "catalog",
+      "scope": {
+        "world": "all",
+        "population": "all",
+        "assistance": "all"
+      },
+      "period": {
+        "kind": "since_start",
+        "from": "2026-09-30T00:00:00Z",
+        "to": "2026-09-30T00:00:05Z"
+      }
+    },
+    "overview": {
+      "path": "shards/7e598188e2960480b8ecf083a80eda5c210e02c91b5bc65990bd158ac1d4e2c6.json",
+      "sha256": "7e598188e2960480b8ecf083a80eda5c210e02c91b5bc65990bd158ac1d4e2c6",
+      "bytes": 1562,
+      "metricId": null,
+      "projection": "overview",
+      "scope": {
+        "world": "all",
+        "population": "all",
+        "assistance": "all"
+      },
+      "period": {
+        "kind": "since_start",
+        "from": "2026-09-30T00:00:00Z",
+        "to": "2026-09-30T00:00:05Z"
+      }
+    },
+    "metrics": {
+      "use.units_consumed": {
+        "entities": {
+          "path": "shards/e900f4cbb779a119d3c6415b23bdd1247d04723b1c74de7deac6f6d9328503bd.json",
+          "sha256": "e900f4cbb779a119d3c6415b23bdd1247d04723b1c74de7deac6f6d9328503bd",
+          "bytes": 598,
+          "metricId": "use.units_consumed",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/fcf45b892d7c3e1d1cad5f6bab87165de6c2fb14d892831173090e58a4d39c2d.json",
+          "sha256": "fcf45b892d7c3e1d1cad5f6bab87165de6c2fb14d892831173090e58a4d39c2d",
+          "bytes": 488,
+          "metricId": "use.units_consumed",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "monster.defeats": {
+        "entities": {
+          "path": "shards/ddcac98174f3161be579bfa3b5cee0cdd18e2b1482fcb9e29cf33e945dc1653e.json",
+          "sha256": "ddcac98174f3161be579bfa3b5cee0cdd18e2b1482fcb9e29cf33e945dc1653e",
+          "bytes": 467,
+          "metricId": "monster.defeats",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/2ebef23cf9faaef7c1de06b28838cab63d953c397aef15babf5e8a26ef7b5f27.json",
+          "sha256": "2ebef23cf9faaef7c1de06b28838cab63d953c397aef15babf5e8a26ef7b5f27",
+          "bytes": 471,
+          "metricId": "monster.defeats",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "quest.completions": {
+        "entities": {
+          "path": "shards/245f8dea799dacf62e1602ee591f3c08f1bb1022eb7027f70d406128e2077634.json",
+          "sha256": "245f8dea799dacf62e1602ee591f3c08f1bb1022eb7027f70d406128e2077634",
+          "bytes": 487,
+          "metricId": "quest.completions",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/51550959cfbbb378e5652d020d44d9c7c767256363d1f6bd63b75728b7feced1.json",
+          "sha256": "51550959cfbbb378e5652d020d44d9c7c767256363d1f6bd63b75728b7feced1",
+          "bytes": 478,
+          "metricId": "quest.completions",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "player.deaths": {
+        "entities": {
+          "path": "shards/42903df9f303e01e07912ddb0ec86512279a4a2f1b3f7de8a55f9394734f8594.json",
+          "sha256": "42903df9f303e01e07912ddb0ec86512279a4a2f1b3f7de8a55f9394734f8594",
+          "bytes": 405,
+          "metricId": "player.deaths",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/14b036528f938a5f21cbec3c2b5c36fe76c1e5768c1f285a785285a8a4856566.json",
+          "sha256": "14b036528f938a5f21cbec3c2b5c36fe76c1e5768c1f285a785285a8a4856566",
+          "bytes": 407,
+          "metricId": "player.deaths",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "pq.runs_cleared": {
+        "entities": {
+          "path": "shards/d1aa381d1213f683493f3de171ab5140c3345790a55942b4bf95fd777fa54abc.json",
+          "sha256": "d1aa381d1213f683493f3de171ab5140c3345790a55942b4bf95fd777fa54abc",
+          "bytes": 468,
+          "metricId": "pq.runs_cleared",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/070f37738569100da8bf6bfd858307ba205220f5b43f95f865232280698d62bc.json",
+          "sha256": "070f37738569100da8bf6bfd858307ba205220f5b43f95f865232280698d62bc",
+          "bytes": 469,
+          "metricId": "pq.runs_cleared",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "pq.participant_clears": {
+        "entities": {
+          "path": "shards/b4ed06c6fcbc3cca52c3bce8c9e92f7d5549511b86ecd2b2392e29cda8e53baa.json",
+          "sha256": "b4ed06c6fcbc3cca52c3bce8c9e92f7d5549511b86ecd2b2392e29cda8e53baa",
+          "bytes": 486,
+          "metricId": "pq.participant_clears",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/332e68b90e2b9c6d58985b6af764946711e2a701f37675cdd6877ef3e45c781b.json",
+          "sha256": "332e68b90e2b9c6d58985b6af764946711e2a701f37675cdd6877ef3e45c781b",
+          "bytes": 486,
+          "metricId": "pq.participant_clears",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      },
+      "jq.finishes": {
+        "entities": {
+          "path": "shards/e0cb696879907c282bc1b05afee4a30d3b029547a16a1ec6ed917eb20becf083.json",
+          "sha256": "e0cb696879907c282bc1b05afee4a30d3b029547a16a1ec6ed917eb20becf083",
+          "bytes": 395,
+          "metricId": "jq.finishes",
+          "projection": "entity",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        },
+        "series": {
+          "path": "shards/88ab28cc35b7b75771a07a4514ebb51520925becf31b96d773a95280e8f2a941.json",
+          "sha256": "88ab28cc35b7b75771a07a4514ebb51520925becf31b96d773a95280e8f2a941",
+          "bytes": 469,
+          "metricId": "jq.finishes",
+          "projection": "total",
+          "scope": {
+            "world": "all",
+            "population": "all",
+            "assistance": "all"
+          },
+          "period": {
+            "kind": "since_start",
+            "from": "2026-09-30T00:00:00Z",
+            "to": "2026-09-30T00:00:05Z"
+          }
+        }
+      }
+    }
+  }
+}

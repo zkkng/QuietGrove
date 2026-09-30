@@ -1,13 +1,6 @@
 npc_versions:
-  9201118: 99 # Hill antique collector
-  9000069: 99 # inkwell
-  9209007: 99
-  9209008: 99
-  9209000: 99
-  9000036: 99
-  9000042: 99
-  9209001: 99
-  1022101: 99 # Rooney Happyville
+  # v83 NPCs are no longer hidden by artificial version-99 bans.
+  # Seasonal availability and unfinished services are handled by their scripts/quests.
 
   1032008: 2 # Cherry Orbis Boat NPC
   2012013: 19 # sunny ludi train

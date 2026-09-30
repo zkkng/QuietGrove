@@ -112,6 +112,8 @@ class BotMovementState {
     int mobHitCooldownMs = 0;             // i-frame countdown after a contact/fall hit
     Point lastMobTouchCheckPos = null;    // previous-tick foot pos for the swept anti-tunnel AABB
     int lastMobTouchMapId = -1;           // invalidates the sweep across a map change
+    server.maps.MapleMap obstacleMap;
+    long obstacleEnteredMs;              // client map-object animation epoch for this entry
 
     // ── Foothold index, rebuilt on map change ──
     int lastMapId = -1;

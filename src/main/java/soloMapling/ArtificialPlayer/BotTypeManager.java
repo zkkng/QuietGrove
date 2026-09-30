@@ -145,6 +145,7 @@ public class BotTypeManager {
         SOCIAL_BOT {
             @Override
             public void createAndSetBot(Character character) {
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 SocialBot socialBot = new SocialBot(character);
                 CharacterStorage.addActiveBot(character.getId(), socialBot);
             }
@@ -152,6 +153,7 @@ public class BotTypeManager {
         TOWN_WANDERER_BOT {
             @Override
             public void createAndSetBot(Character character) {
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 TownWandererBot bot = new TownWandererBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
@@ -166,6 +168,7 @@ public class BotTypeManager {
         TRAINING_BOT {
             @Override
             public void createAndSetBot(Character character) {
+                soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 TrainingBot bot = new TrainingBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }

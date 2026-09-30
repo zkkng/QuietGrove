@@ -32,7 +32,7 @@ import tools.PacketCreator;
  */
 public class LeftKnockbackHandler extends AbstractPacketHandler {
     public void handlePacket(InPacket p, final Client c) {
-        c.sendPacket(PacketCreator.leftKnockBack());
+        server.events.gm.GmEventService.getInstance().snowballCollision(c.getPlayer(),null);
         c.sendPacket(PacketCreator.enableActions());
     }
 }

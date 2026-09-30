@@ -32,7 +32,7 @@ public class ScriptRequirement extends AbstractQuestRequirement {
     private boolean reqScript;
 
     public ScriptRequirement(Quest quest, Data data) {
-        super(QuestRequirementType.BUFF);
+        super(QuestRequirementType.SCRIPT);
         processData(data);
     }
 

@@ -1,5 +1,5 @@
 var minPlayers = 1;
-var timeLimit = 1; //10 minutes
+var timeLimit = 10; // ten minutes for the scripted Puppeteer encounter
 var eventTimer = 1000 * 60 * timeLimit;
 var exitMap = 105070300;
 var eventMap = 910510000;

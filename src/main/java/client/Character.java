@@ -1986,6 +1986,11 @@ public class Character extends AbstractCharacterObject {
         }
 
         if (ob instanceof MapItem mapitem) {
+            if (mapitem.getVenueAssetId() != null) {
+                server.trainer.TrainerVenuePickup.pickup(this, mapitem, petIndex, false);
+                return;
+            }
+            if (server.events.gm.GmEventService.getInstance().treasurePickup(this,mapitem,petIndex)) return;
             if (System.currentTimeMillis() - mapitem.getDropTime() < 400 || !mapitem.canBePickedBy(this)) {
                 sendPacket(PacketCreator.enableActions());
                 return;
@@ -2000,6 +2005,12 @@ public class Character extends AbstractCharacterObject {
             mapitem.lockItem();
             try {
                 if (mapitem.isPickedUp()) {
+                    sendPacket(PacketCreator.showItemUnavailable());
+                    sendPacket(PacketCreator.enableActions());
+                    return;
+                }
+                if (mapitem.pickupExpired(System.currentTimeMillis())) {
+                    getMap().makeDisappearItemFromMap(mapitem);
                     sendPacket(PacketCreator.showItemUnavailable());
                     sendPacket(PacketCreator.enableActions());
                     return;
@@ -2028,6 +2039,7 @@ public class Character extends AbstractCharacterObject {
                                     this.gainMeso(mapitem.getMeso(), true, true, false);
                                 }
 
+                                mapitem.markCollectedBy(this);
                                 this.getMap().pickItemDrop(pickupPacket, mapitem);
                             } else if (ItemId.isNxCard(mapitem.getItemId())) {
                                 // Add NX to account, show effect and make item disappear
@@ -2038,8 +2050,10 @@ public class Character extends AbstractCharacterObject {
                                     showHint("You have earned #e#b" + nxGain + " NX#k#n. (" + this.getCashShop().getCash(CashShop.NX_CREDIT) + " NX)", 300);
                                 }
 
+                                mapitem.markCollectedBy(this);
                                 this.getMap().pickItemDrop(pickupPacket, mapitem);
                             } else if (InventoryManipulator.addFromDrop(client, mItem, true)) {
+                                mapitem.markCollectedBy(this);
                                 this.getMap().pickItemDrop(pickupPacket, mapitem);
                             } else {
                                 sendPacket(PacketCreator.enableActions());
@@ -2099,6 +2113,7 @@ public class Character extends AbstractCharacterObject {
                         return;
                     }
 
+                    mapitem.markCollectedBy(this);
                     this.getMap().pickItemDrop(pickupPacket, mapitem);
                 } else if (!hasSpaceInventory) {
                     sendPacket(PacketCreator.getInventoryFull());
@@ -2383,7 +2398,7 @@ public class Character extends AbstractCharacterObject {
                 ps.executeUpdate();
             }
 
-            String[] toDel = {"famelog", "inventoryitems", "keymap", "queststatus", "savedlocations", "trocklocations", "skillmacros", "skills", "eventstats", "server_queue"};
+            String[] toDel = {"famelog", "inventoryitems", "keymap", "queststatus", "savedlocations", "trocklocations", "skillmacros", "skills", "eventstats", "server_queue", "pc_cafe_progress"};
             for (String s : toDel) {
                 Character.deleteWhereCharacterId(con, "DELETE FROM `" + s + "` WHERE characterid = ?", cid);
             }
@@ -2710,6 +2725,7 @@ public class Character extends AbstractCharacterObject {
     }
 
     public void giveDebuff(final Disease disease, MobSkill skill) {
+        if (server.trainer.TrainerService.getInstance().immune(this, disease)) return;
         if (!hasDisease(disease) && getDiseasesSize() < 2) {
             if (!(disease == Disease.SEDUCE || disease == Disease.STUN)) {
                 if (hasActiveBuff(Bishop.HOLY_SHIELD)) {
@@ -2890,6 +2906,22 @@ public class Character extends AbstractCharacterObject {
                 }
             }, 1500);
         }
+    }
+    /** Clientless actors use the shared movement pump instead of allocating a timer per actor. */
+    public void expireClientlessEffects() {
+        long now = Server.getInstance().getCurrentTime();
+        List<Disease> expiredDiseases = new ArrayList<>();
+        List<BuffStatValueHolder> expiredBuffs = new ArrayList<>();
+        effLock.lock(); chrLock.lock();
+        try {
+            diseaseExpires.forEach((d,end) -> { if (now >= end) expiredDiseases.add(d); });
+            buffExpires.forEach((id,end) -> {
+                var values = buffEffects.get(id);
+                if (now >= end && values != null && !values.isEmpty()) expiredBuffs.add(values.values().iterator().next());
+            });
+        } finally { chrLock.unlock(); effLock.unlock(); }
+        expiredDiseases.forEach(this::dispelDebuff);
+        expiredBuffs.forEach(b -> cancelEffect(b.effect,false,b.startTime));
     }
 
     public void cancelBuffExpireTask() {
@@ -3245,6 +3277,124 @@ public class Character extends AbstractCharacterObject {
     public boolean canHoldMeso(int gain) {  // thanks lucasziron for pointing out a need to check space availability for mesos on player transactions
         long nextMeso = (long) meso.get() + gain;
         return nextMeso <= Integer.MAX_VALUE;
+    }
+
+    /** Atomically reject unaffordable purchases instead of clamping a negative balance to zero. */
+    public boolean trySpendMeso(int amount) {
+        if (amount < 0) throw new IllegalArgumentException("Negative meso cost");
+        int balance;
+        petLock.lock();
+        try {
+            if (meso.get() < amount) return false;
+            balance = meso.addAndGet(-amount);
+        } finally {
+            petLock.unlock();
+        }
+        updateSingleStat(Stat.MESO, balance, false);
+        return true;
+    }
+
+    public enum DurableMesoResult { APPLIED, ALREADY_APPLIED, REJECTED }
+
+    /**
+     * One exact venue debit/refund, committed with its receipt and persisted balance.
+     * The Character monitor serializes autosave, while petLock serializes ordinary
+     * in-memory meso changes. A retry of the same operation never changes balance.
+     */
+    public synchronized DurableMesoResult adjustVenueMeso(String operationId, String roundId, int delta) {
+        if (server.trainer.TrainerVenuePickup.hasUnresolved(this)) return DurableMesoResult.REJECTED;
+        if (operationId == null || operationId.length() != 36 || roundId == null
+                || roundId.length() != 36 || delta == 0) throw new IllegalArgumentException("venue meso operation");
+        int balanceAfter = -1;
+        DurableMesoResult result = DurableMesoResult.REJECTED;
+        petLock.lock();
+        try {
+            try (Connection con = DatabaseConnection.getConnection()) {
+                con.setAutoCommit(false);
+                try {
+                    try (PreparedStatement previous = con.prepareStatement(
+                            "SELECT round_id, actor_character_id, delta FROM trainer_venue_meso_ops "
+                                    + "WHERE operation_id = ?")) {
+                        previous.setString(1, operationId);
+                        try (ResultSet rows = previous.executeQuery()) {
+                            if (rows.next()) {
+                                if (!roundId.equals(rows.getString(1)) || rows.getInt(2) != getId()
+                                        || rows.getInt(3) != delta)
+                                    throw new SQLException("Conflicting venue operation identity");
+                                con.rollback();
+                                return DurableMesoResult.ALREADY_APPLIED;
+                            }
+                        }
+                    }
+                    long next = (long) meso.get() + delta;
+                    if (next < 0 || next > Integer.MAX_VALUE) {
+                        con.rollback();
+                        return DurableMesoResult.REJECTED;
+                    }
+                    try (PreparedStatement insert = con.prepareStatement(
+                            "INSERT IGNORE INTO trainer_venue_meso_ops "
+                                    + "(operation_id, round_id, actor_character_id, delta, balance_after, created_at_ms) "
+                                    + "VALUES (?, ?, ?, ?, ?, ?)")) {
+                        insert.setString(1, operationId);
+                        insert.setString(2, roundId);
+                        insert.setInt(3, getId());
+                        insert.setInt(4, delta);
+                        insert.setInt(5, (int) next);
+                        insert.setLong(6, System.currentTimeMillis());
+                        if (insert.executeUpdate() == 0) {
+                            try (PreparedStatement existing = con.prepareStatement(
+                                    "SELECT round_id, actor_character_id, delta FROM trainer_venue_meso_ops "
+                                            + "WHERE operation_id = ?")) {
+                                existing.setString(1, operationId);
+                                try (ResultSet rows = existing.executeQuery()) {
+                                    if (!rows.next() || !roundId.equals(rows.getString(1))
+                                            || rows.getInt(2) != getId() || rows.getInt(3) != delta)
+                                        throw new SQLException("Conflicting venue operation identity");
+                                }
+                            }
+                            con.rollback();
+                            return DurableMesoResult.ALREADY_APPLIED;
+                        }
+                    }
+                    try (PreparedStatement balance = con.prepareStatement(
+                            "UPDATE characters SET meso = ? WHERE id = ?")) {
+                        balance.setInt(1, (int) next);
+                        balance.setInt(2, getId());
+                        if (balance.executeUpdate() != 1) throw new SQLException("Venue character balance missing");
+                    }
+                    con.commit();
+                    balanceAfter = (int) next;
+                    meso.set(balanceAfter);
+                    result = DurableMesoResult.APPLIED;
+                } catch (SQLException failure) {
+                    con.rollback();
+                    throw failure;
+                }
+            } catch (SQLException | IllegalStateException failure) {
+                log.error("Venue meso operation failed for character {} round {}", getId(), roundId, failure);
+                try (Connection check = DatabaseConnection.getConnection();
+                     PreparedStatement receipt = check.prepareStatement(
+                             "SELECT round_id, actor_character_id, delta, balance_after FROM trainer_venue_meso_ops WHERE operation_id = ?")) {
+                    receipt.setString(1, operationId);
+                    try (ResultSet rows = receipt.executeQuery()) {
+                        if (!rows.next()) return DurableMesoResult.REJECTED;
+                        if (!roundId.equals(rows.getString(1)) || rows.getInt(2) != getId() || rows.getInt(3) != delta)
+                            throw new SQLException("Conflicting venue meso receipt after unknown commit");
+                        balanceAfter = rows.getInt(4);
+                        meso.set(balanceAfter);
+                        result = DurableMesoResult.APPLIED;
+                    }
+                } catch (SQLException | IllegalStateException unknown) {
+                    log.error("Venue balance outcome unknown; suppressing stale saves for {}", getId(), unknown);
+                    server.trainer.TrainerVenuePickup.quarantine(this);
+                    return DurableMesoResult.REJECTED;
+                }
+            }
+        } finally {
+            petLock.unlock();
+        }
+        if (result == DurableMesoResult.APPLIED) updateSingleStat(Stat.MESO, balanceAfter, false);
+        return result;
     }
 
     public void gainMeso(int gain) {
@@ -5569,7 +5719,7 @@ public class Character extends AbstractCharacterObject {
 
     public List<Character> getPartyMembersOnSameMap() {
         List<Character> list = new LinkedList<>();
-        int thisMapHash = this.getMap().hashCode();
+        MapleMap partyMap = this.getMap();
 
         prtLock.lock();
         try {
@@ -5578,7 +5728,8 @@ public class Character extends AbstractCharacterObject {
                     Character chr = mpc.getPlayer();
                     if (chr != null) {
                         MapleMap chrMap = chr.getMap();
-                        if (chrMap != null && chrMap.hashCode() == thisMapHash && chr.isLoggedinWorld()) {
+                        if (chrMap != null && chrMap == partyMap && (chr.isLoggedinWorld()
+                                || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr))) {
                             list.add(chr);
                         }
                     }
@@ -5902,6 +6053,11 @@ public class Character extends AbstractCharacterObject {
         clearSavedLocation(SavedLocationType.fromString(type));
 
         return m;
+    }
+
+    public int peekSavedLocationPortal(String type) {
+        SavedLocation sl = savedLocations[SavedLocationType.fromString(type).ordinal()];
+        return sl == null ? 0 : sl.getPortal();
     }
 
     public String getSearch() {
@@ -6903,6 +7059,8 @@ public class Character extends AbstractCharacterObject {
         ret.id = charid;
 
         try (Connection con = DatabaseConnection.getConnection()) {
+            ret.pcCafeState = server.pccafe.PcCafeStore.load(con, charid);
+            ret.contentState = server.content.ContentStore.load(con, charid);
             final int mountexp;
             final int mountlevel;
             final int mounttiredness;
@@ -7199,6 +7357,7 @@ public class Character extends AbstractCharacterObject {
                                 status.setExpirationTime(eTime);
                             }
 
+                            status.setCustomData(rs.getString("customData"));
                             status.setForfeited(rs.getInt("forfeited"));
                             status.setCompleted(rs.getInt("completed"));
                             ret.quests.put(q.getId(), status);
@@ -7461,15 +7620,9 @@ public class Character extends AbstractCharacterObject {
     }
 
     public void raiseQuestMobCount(int id) {
-        // It seems nexon uses monsters that don't exist in the WZ (except string) to merge multiple mobs together for these 3 monsters.
-        // We also want to run mobKilled for both since there are some quest that don't use the updated ID...
-        if (id == MobId.GREEN_MUSHROOM || id == MobId.DEJECTED_GREEN_MUSHROOM) {
-            raiseQuestMobCount(MobId.GREEN_MUSHROOM_QUEST);
-        } else if (id == MobId.ZOMBIE_MUSHROOM || id == MobId.ANNOYED_ZOMBIE_MUSHROOM) {
-            raiseQuestMobCount(MobId.ZOMBIE_MUSHROOM_QUEST);
-        } else if (id == MobId.GHOST_STUMP || id == MobId.SMIRKING_GHOST_STUMP) {
-            raiseQuestMobCount(MobId.GHOST_STUMP_QUEST);
-        }
+        int alias = MobId.questCounterAlias(id);
+        if (alias != id) raiseQuestMobCount(alias);
+
 
         int lastQuestProcessed = 0;
         try {
@@ -8295,7 +8448,19 @@ public class Character extends AbstractCharacterObject {
     }
 
     //ItemFactory saveItems and monsterbook.saveCards are the most time consuming here.
+    private server.content.ContentState contentState = new server.content.ContentState();
+
+    public server.content.ContentState getContentState() { return contentState; }
+
+    private server.pccafe.PcCafeState pcCafeState = new server.pccafe.PcCafeState();
+
+    public server.pccafe.PcCafeState getPcCafeState() { return pcCafeState; }
+
     public synchronized void saveCharToDB(boolean notAutosave) {
+        if (server.trainer.TrainerVenuePickup.hasUnresolved(this)) {
+            log.error("Skipped stale character save after unresolved venue commit: {}", id);
+            return;
+        }
         if (!loggedIn) {
             return;
         }
@@ -8620,7 +8785,7 @@ public class Character extends AbstractCharacterObject {
                 deleteQuestProgressWhereCharacterId(con, id);
 
                 // Quests and medals
-                try (PreparedStatement psStatus = con.prepareStatement("INSERT INTO queststatus (`queststatusid`, `characterid`, `quest`, `status`, `time`, `expires`, `forfeited`, `completed`) VALUES (DEFAULT, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
+                try (PreparedStatement psStatus = con.prepareStatement("INSERT INTO queststatus (`queststatusid`, `characterid`, `quest`, `status`, `time`, `expires`, `forfeited`, `completed`, `customData`) VALUES (DEFAULT, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
                      PreparedStatement psProgress = con.prepareStatement("INSERT INTO questprogress VALUES (DEFAULT, ?, ?, ?, ?)");
                      PreparedStatement psMedal = con.prepareStatement("INSERT INTO medalmaps VALUES (DEFAULT, ?, ?, ?)")) {
                     psStatus.setInt(1, id);
@@ -8632,6 +8797,7 @@ public class Character extends AbstractCharacterObject {
                         psStatus.setLong(5, qs.getExpirationTime());
                         psStatus.setInt(6, qs.getForfeited());
                         psStatus.setInt(7, qs.getCompleted());
+                        psStatus.setString(8, qs.getCustomData());
                         psStatus.executeUpdate();
 
                         try (ResultSet rs = psStatus.getGeneratedKeys()) {
@@ -8656,21 +8822,19 @@ public class Character extends AbstractCharacterObject {
                     }
                 }
 
+                List<Pair<FamilyEntry, FamilyEntry.ReputationSnapshot>> savedFamilyRep = new ArrayList<>(3);
                 FamilyEntry familyEntry = getFamilyEntry(); //save family rep
                 if (familyEntry != null) {
-                    if (familyEntry.saveReputation(con)) {
-                        familyEntry.savedSuccessfully();
-                    }
+                    var snapshot = familyEntry.saveReputationSnapshot(con);
+                    if (snapshot != null) savedFamilyRep.add(new Pair<>(familyEntry, snapshot));
                     FamilyEntry senior = familyEntry.getSenior();
                     if (senior != null && senior.getChr() == null) { //only save for offline family members
-                        if (senior.saveReputation(con)) {
-                            senior.savedSuccessfully();
-                        }
+                        snapshot = senior.saveReputationSnapshot(con);
+                        if (snapshot != null) savedFamilyRep.add(new Pair<>(senior, snapshot));
                         senior = senior.getSenior(); //save one level up as well
                         if (senior != null && senior.getChr() == null) {
-                            if (senior.saveReputation(con)) {
-                                senior.savedSuccessfully();
-                            }
+                            snapshot = senior.saveReputationSnapshot(con);
+                            if (snapshot != null) savedFamilyRep.add(new Pair<>(senior, snapshot));
                         }
                     }
 
@@ -8685,7 +8849,10 @@ public class Character extends AbstractCharacterObject {
                     usedStorage = false;
                 }
 
+                server.pccafe.PcCafeStore.save(con, id, pcCafeState);
+                server.content.ContentStore.save(con, id, contentState);
                 con.commit();
+                for (var saved : savedFamilyRep) saved.getLeft().savedSuccessfully(saved.getRight());
             } catch (Exception e) {
                 con.rollback();
                 throw e;
@@ -8858,6 +9025,7 @@ public class Character extends AbstractCharacterObject {
     }
 
     public void setHair(int hair) {
+        server.content.Medals.hairstyle(this, this.hair, hair);
         this.hair = hair;
     }
 

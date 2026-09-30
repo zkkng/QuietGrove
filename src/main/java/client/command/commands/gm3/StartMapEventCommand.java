@@ -33,6 +33,6 @@ public class StartMapEventCommand extends Command {
 
     @Override
     public void execute(Client c, String[] params) {
-        c.getPlayer().getMap().startEvent(c.getPlayer());
+        c.getPlayer().dropMessage(5, server.events.gm.GmEventService.getInstance().start(c.getPlayer()));
     }
 }

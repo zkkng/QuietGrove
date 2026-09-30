@@ -943,11 +943,17 @@ public class Server {
             }
         }
 
+        server.trainer.TrainerVenueService.recoverBeforeLogin();
         loginServer = initLoginServer(8484);
 
         log.info("Listening on port 8484");
 
         online = true;
+        try {
+            server.trainer.TrainerService.getInstance().start();
+        } catch (Exception trainerFailure) {
+            log.error("Own-server trainer bridge unavailable; game server remains online", trainerFailure);
+        }
         Duration initDuration = Duration.between(beforeInit, Instant.now());
         log.info("Cosmic is now online after {} ms.", initDuration.toMillis());
 
@@ -1938,6 +1944,7 @@ public class Server {
         if (getWorlds() == null) {
             return;//already shutdown
         }
+        server.trainer.TrainerVenueService.stop();
         for (World w : getWorlds()) {
             w.shutdown();
         }

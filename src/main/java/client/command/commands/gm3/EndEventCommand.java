@@ -35,7 +35,6 @@ public class EndEventCommand extends Command {
     @Override
     public void execute(Client c, String[] params) {
         Character player = c.getPlayer();
-        c.getChannelServer().setEvent(null);
-        player.dropMessage(5, "You have ended the event. No more players may join.");
+        player.dropMessage(5, server.events.gm.GmEventService.getInstance().closeEntry(player));
     }
 }

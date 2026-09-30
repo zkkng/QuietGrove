@@ -60,6 +60,10 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
     @Override
     public void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
+        if (!server.trainer.TrainerService.getInstance().allowClientAttack(chr)) {
+            c.sendPacket(PacketCreator.enableActions());
+            return;
+        }
         
         /*long timeElapsed = currentServerTime() - chr.getAutobanManager().getLastSpam(8);
         if(timeElapsed < 300) {
@@ -68,6 +72,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
         chr.getAutobanManager().spam(8);*/
 
         AttackInfo attack = parseDamage(p, chr, true, false);
+        server.trainer.TrainerService.getInstance().prepareAttack(chr, attack);
 
         if (chr.getBuffEffect(BuffStat.MORPH) != null) {
             if (chr.getBuffEffect(BuffStat.MORPH).isMorphWithoutAttack()) {
@@ -190,7 +195,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
 
                     if (slot < 0) {
                         log.warn("<ERROR> Projectile to use was unable to be found.");
-                    } else {
+                    } else if (!server.trainer.TrainerService.getInstance().noAmmo(chr)) {
                         InventoryManipulator.removeFromSlot(c, InventoryType.USE, slot, bulletConsume, false, true);
                     }
                 }
@@ -213,6 +218,7 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
                     visProjectile = 0;
                 }
 
+                attack.trainerProjectile = visProjectile;
                 final Packet packet;
                 switch (attack.skill) {
                     case 3121004: // Hurricane
@@ -235,10 +241,10 @@ public final class RangedAttackHandler extends AbstractDealDamageHandler {
                     Skill skill = SkillFactory.getSkill(attack.skill);
                     StatEffect effect_ = skill.getEffect(chr.getSkillLevel(skill));
                     if (effect_.getCooldown() > 0) {
-                        if (chr.skillIsCooling(attack.skill)) {
+                        if (chr.skillIsCooling(attack.skill) && !server.trainer.TrainerService.getInstance().cooldownBypass(chr, attack.skill)) {
                             return;
                         } else {
-                            c.sendPacket(PacketCreator.skillCooldown(attack.skill, effect_.getCooldown()));
+                            c.sendPacket(PacketCreator.skillCooldown(attack.skill, server.trainer.TrainerService.getInstance().cooldownDisplay(chr, attack.skill, effect_.getCooldown())));
                             chr.addCooldown(attack.skill, currentServerTime(), SECONDS.toMillis(effect_.getCooldown()));
                         }
                     }

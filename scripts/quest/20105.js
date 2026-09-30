@@ -7,6 +7,10 @@ var jobType = 5;
 var canTryFirstJob = true;
 
 function end(mode, type, selection) {
+    if (mode == -1) {
+        qm.dispose();
+        return;
+    }
     if (mode == 0) {
         if (status == 0) {
             qm.sendNext("This is an important decision to make.");

@@ -43,6 +43,10 @@ public final class MagicDamageHandler extends AbstractDealDamageHandler {
     @Override
     public final void handlePacket(InPacket p, Client c) {
         Character chr = c.getPlayer();
+        if (!server.trainer.TrainerService.getInstance().allowClientAttack(chr)) {
+            c.sendPacket(PacketCreator.enableActions());
+            return;
+        }
 
 		/*long timeElapsed = currentServerTime() - chr.getAutobanManager().getLastSpam(8);
 		if(timeElapsed < 300) {
@@ -51,6 +55,7 @@ public final class MagicDamageHandler extends AbstractDealDamageHandler {
 		chr.getAutobanManager().spam(8);*/
 
         AttackInfo attack = parseDamage(p, chr, false, true);
+        server.trainer.TrainerService.getInstance().prepareAttack(chr, attack);
 
         if (chr.getBuffEffect(BuffStat.MORPH) != null) {
             if (chr.getBuffEffect(BuffStat.MORPH).isMorphWithoutAttack()) {
@@ -74,10 +79,10 @@ public final class MagicDamageHandler extends AbstractDealDamageHandler {
         Skill skill = SkillFactory.getSkill(attack.skill);
         StatEffect effect_ = skill.getEffect(chr.getSkillLevel(skill));
         if (effect_.getCooldown() > 0) {
-            if (chr.skillIsCooling(attack.skill)) {
+            if (chr.skillIsCooling(attack.skill) && !server.trainer.TrainerService.getInstance().cooldownBypass(chr, attack.skill)) {
                 return;
             } else {
-                c.sendPacket(PacketCreator.skillCooldown(attack.skill, effect_.getCooldown()));
+                c.sendPacket(PacketCreator.skillCooldown(attack.skill, server.trainer.TrainerService.getInstance().cooldownDisplay(chr, attack.skill, effect_.getCooldown())));
                 chr.addCooldown(attack.skill, currentServerTime(), SECONDS.toMillis(effect_.getCooldown()));
             }
         }

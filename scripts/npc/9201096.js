@@ -69,7 +69,12 @@ function action(mode, type, selection) {
         var prompt = "Ok, I'll be crafting some #t" + item + "#. In that case, how many of those do you want me to make?";
         cm.sendGetNumber(prompt, 1, 1, 100)
     } else if (status == 3) {
-        qty = (selection > 0) ? selection : (selection < 0 ? -selection : 1);
+        if (!Number.isInteger(selection) || selection < 1 || selection > 100) {
+                cm.sendOk("Please choose a whole number from 1 to 100.");
+                cm.dispose();
+                return;
+            }
+            qty = selection;
         last_use = false;
 
         var prompt = "So, you want me to make ";

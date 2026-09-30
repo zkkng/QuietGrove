@@ -87,6 +87,20 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Monster extends AbstractLoadedLife {
+    private static final AtomicLong NEXT_ENCOUNTER = new AtomicLong();
+    private long encounterId = NEXT_ENCOUNTER.incrementAndGet();
+    private int encounterRootTemplate;
+    public long getEncounterId() { return encounterId; }
+    public int getEncounterRootTemplate() { return encounterRootTemplate==0?getId():encounterRootTemplate; }
+    /** Canonical spawn/revive helpers propagate identity; recruitment never owns world monsters. */
+    public void inheritEncounter(Monster parent) {
+        encounterId = parent.getEncounterId();
+        encounterRootTemplate=parent.getEncounterRootTemplate();
+        incidentOwner = parent.getIncidentOwner();
+    }
+    private String incidentOwner;
+    public String getIncidentOwner() { return incidentOwner; }
+    public void setIncidentOwner(String owner) { incidentOwner = owner; }
     private static final Logger log = LoggerFactory.getLogger(Monster.class);
 
     private ChangeableStats ostats = null;  //unused, v83 WZs offers no support for changeable stats.
@@ -102,6 +116,18 @@ public class Monster extends AbstractLoadedLife {
     private MapleMap map;
     private int VenomMultiplier = 0;
     private boolean fake = false;
+    private boolean encounterIntro;
+
+    /** Visual marker whose canonical helper has already spawned its linked parts. */
+    public void setEncounterIntro() {
+        encounterIntro = true;
+        setFake(true);
+        disableDrops();
+    }
+    /** Horntail's aggregate reward body and defeated-part objects are not attack targets. */
+    public boolean isEncounterMarker() {
+        return encounterIntro || getId()==MobId.HORNTAIL || MobId.isDeadHorntailPart(getId());
+    }
     private boolean dropsDisabled = false;
     private final Set<MobSkillId> usedSkills = new HashSet<>();
     private final Set<Integer> usedAttacks = new HashSet<>();
@@ -195,6 +221,7 @@ public class Monster extends AbstractLoadedLife {
     }
 
     public void addSummonedMob(Monster mob) {
+        mob.inheritEncounter(this);
         Set<Integer> calledOids = this.calledMobOids;
         if (calledOids == null) {
             calledOids = Collections.synchronizedSet(new HashSet<>());
@@ -409,32 +436,11 @@ public class Monster extends AbstractLoadedLife {
 
         this.lockMonster();
         try {
-            if (!this.isAlive()) {
+            if (isEncounterMarker() || !this.isAlive()) {
                 return false;
             }
 
-            /* pyramid not implemented
-            Pair<Integer, Integer> cool = this.getStats().getCool();
-            if (cool != null) {
-                Pyramid pq = (Pyramid) chr.getPartyQuest();
-                if (pq != null) {
-                    if (damage > 0) {
-                        if (damage >= cool.getLeft()) {
-                            if ((Math.random() * 100) < cool.getRight()) {
-                                pq.cool();
-                            } else {
-                                pq.kill();
-                            }
-                        } else {
-                            pq.kill();
-                        }
-                    } else {
-                        pq.miss();
-                    }
-                    killed = true;
-                }
-            }
-            */
+
 
             if (damage > 0) {
                 this.applyDamage(attacker, damage, stayAlive, false);
@@ -465,6 +471,8 @@ public class Monster extends AbstractLoadedLife {
         }
 
         if (!fake) {
+            soloMapling.ArtificialPlayer.CompanionSystem.CompanionActivity.damage(from, trueDamage);
+            soloMapling.ArtificialPlayer.CompanionSystem.BossRuntime.damaged(this, from, trueDamage);
             dispatchMonsterDamaged(from, trueDamage);
         }
 
@@ -589,6 +597,41 @@ public class Monster extends AbstractLoadedLife {
 
         int membersSize = expMembers.size();
         float participationExp = partyDamage * expPerDmg;
+
+        if (expMembers.stream().anyMatch(soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime::active)) {
+            var tasks = soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared();
+            boolean humanPresent = expMembers.stream().anyMatch(c -> !BotHelpers.isBot(c) && c.isAlive() && c.isLoggedinWorld());
+            Map<Integer, Boolean> activity = new HashMap<>();
+            for (Character member : expMembers) {
+                var task = tasks.task(member.getId()).orElse(null);
+                boolean actionable = task == null || humanPresent
+                        && (task.state() == soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.State.ENGAGE
+                        || task.state() == soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.State.SUPPORT);
+                activity.put(member.getId(), actionable && soloMapling.ArtificialPlayer.CompanionSystem.CompanionActivity.active(
+                        member, expMembers, partyParticipation.getOrDefault(member, 0L)));
+            }
+            Character activeMvp = expMembers.stream().filter(Character::isAlive)
+                    .filter(c -> !tasks.task(c.getId()).isPresent() || activity.get(c.getId()))
+                    .max(java.util.Comparator.comparingLong(c -> partyParticipation.getOrDefault(c, 0L))).orElse(null);
+            var snapshot = expMembers.stream().map(c -> new soloMapling.ArtificialPlayer.CompanionSystem.CompanionExpPolicy.Member(
+                    c.getId(), c.getLevel(), !BotHelpers.isBot(c), tasks.task(c.getId()).isPresent(),
+                    activity.get(c.getId()), c.isAlive(), c == activeMvp)).toList();
+            double common = YamlConfig.config.server.EXP_SPLIT_COMMON_MOD;
+            double mvp = YamlConfig.config.server.EXP_SPLIT_MVP_MOD;
+            double total = common + mvp;
+            var settings = new soloMapling.ArtificialPlayer.CompanionSystem.CompanionExpPolicy.Settings(
+                    common / total, mvp / total, java.util.List.of(0.0, .20, .35, .45, .55, .65));
+            var plan = soloMapling.ArtificialPlayer.CompanionSystem.CompanionExpPolicy.calculate(participationExp, snapshot, settings);
+            for (var share : plan.shares()) {
+                Character member = expMembers.stream().filter(c -> c.getId() == share.id()).findFirst().orElseThrow();
+                giveExpToCharacter(member, (float)share.base(), (float)share.partyBonus(),
+                        isWhiteExpGain(member, personalRatio, sdevRatio), plan.hasPartySharers());
+                giveFamilyRep(member.getFamilyEntry());
+            }
+            soloMapling.ArtificialPlayer.CompanionSystem.CompanionActivity.awardedKill(
+                    expMembers.stream().filter(c -> plan.shares().stream().anyMatch(s -> s.id() == c.getId())).toList(), plan.hasPartySharers());
+            return;
+        }
 
         // thanks Crypter for reporting an insufficiency on party exp bonuses
         boolean hasPartySharers = membersSize > 1;
@@ -731,6 +774,8 @@ public class Monster extends AbstractLoadedLife {
             if (personalExp != null) {
                 personalExp *= getStatusExpMultiplier(attacker, hasPartySharers);
                 personalExp *= attacker.getExpRate();
+                personalExp *= (float) server.pccafe.PcCafe.expMultiplier(attacker);
+                personalExp *= (float) server.content.FamilyBenefits.expMultiplier(attacker);
             } else {
                 personalExp = 0.0f;
             }
@@ -745,6 +790,8 @@ public class Monster extends AbstractLoadedLife {
             if (partyExp != null) {
                 partyExp *= getStatusExpMultiplier(attacker, hasPartySharers);
                 partyExp *= attacker.getExpRate();
+                partyExp *= (float) server.pccafe.PcCafe.expMultiplier(attacker);
+                partyExp *= (float) server.content.FamilyBenefits.expMultiplier(attacker);
                 partyExp *= YamlConfig.config.server.PARTY_BONUS_EXP_RATE;
             } else {
                 partyExp = 0.0f;
@@ -759,7 +806,9 @@ public class Monster extends AbstractLoadedLife {
             if (!isBot) {
                 attacker.increaseEquipExp(_personalExp);
             }
+            server.content.MarketEgg.huntingExp(attacker, (long) _personalExp + _partyExp);
             attacker.raiseQuestMobCount(getId());
+            server.content.Medals.killed(attacker, this);
         }
     }
 
@@ -773,7 +822,7 @@ public class Monster extends AbstractLoadedLife {
         List<Character> lootChars = new LinkedList<>();
         for (Integer cid : takenDamage.keySet()) {
             Character chr = pchars.get(cid);
-            if (chr != null && chr.isLoggedinWorld()) {
+            if (chr != null && (chr.isLoggedinWorld() || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr))) {
                 lootChars.add(chr);
             }
         }
@@ -782,6 +831,7 @@ public class Monster extends AbstractLoadedLife {
     }
 
     public Character killBy(final Character killer) {
+        if (encounterIntro) return null; // No EXP or WZ revives for an animation-only helper marker.
         distributeExperience(killer != null ? killer.getId() : 0);
 
         final Pair<Character, Boolean> lastController = aggroRemoveController();
@@ -811,15 +861,17 @@ public class Monster extends AbstractLoadedLife {
                         mob.setPosition(getPosition());
                         mob.setFh(getFh());
                         mob.setParentMobOid(getObjectId());
+                        mob.inheritEncounter(Monster.this);
 
                         if (dropsDisabled()) {
                             mob.disableDrops();
                         }
                         reviveMap.spawnMonster(mob);
 
-                        if (MobId.isDeadHorntailPart(mob.getId()) && reviveMap.isHorntailDefeated()) {
+                        if (MobId.isDeadHorntailPart(mob.getId()) && reviveMap.isHorntailDefeated(getEncounterId())) {
                             boolean htKilled = false;
-                            Monster ht = reviveMap.getMonsterById(MobId.HORNTAIL);
+                            Monster ht = reviveMap.getAllMonsters().stream().filter(m -> m.getId() == MobId.HORNTAIL
+                                    && m.getEncounterId() == getEncounterId()).findFirst().orElse(null);
 
                             if (ht != null) {
                                 ht.lockMonster();
@@ -836,7 +888,9 @@ public class Monster extends AbstractLoadedLife {
                             }
 
                             for (int i = MobId.DEAD_HORNTAIL_MAX; i >= MobId.DEAD_HORNTAIL_MIN; i--) {
-                                reviveMap.killMonster(reviveMap.getMonsterById(i), killer, true, (short) 0);
+                                int template = i;
+                                reviveMap.getAllMonsters().stream().filter(m -> m.getId() == template && m.getEncounterId() == getEncounterId())
+                                        .toList().forEach(m -> reviveMap.killMonster(m,null,false,(short)0));
                             }
                         } else if (controller != null) {
                             mob.aggroSwitchController(controller, aggro);
@@ -1535,6 +1589,7 @@ public class Monster extends AbstractLoadedLife {
     public int canUseAttack(int attackPos, boolean isSkill) {
         monsterLock.lock();
         try {
+            if (usedAttacks.contains(attackPos) && soloMapling.ArtificialPlayer.CompanionSystem.BossMonsterController.authoritativeMonster(this)) return -1;
             /*
             if (usedAttacks.contains(attackPos)) {
                 return -1;
@@ -1729,6 +1784,12 @@ public class Monster extends AbstractLoadedLife {
     public int getPADamage() {
         return stats.getPADamage();
     }
+    public int effectiveStat(int base, MonsterStatus increase, MonsterStatus delta) {
+        var raised = getStati(increase); var changed = getStati(delta);
+        long percent = raised == null ? 100 : raised.getStati().getOrDefault(increase,100);
+        long flat = changed == null ? 0 : changed.getStati().getOrDefault(delta,0);
+        return (int)Math.min(Integer.MAX_VALUE,Math.max(0,(long)base*Math.max(0,percent)/100+flat));
+    }
 
     public Map<MonsterStatus, MonsterStatusEffect> getStati() {
         statiLock.lock();
@@ -1850,7 +1911,7 @@ public class Monster extends AbstractLoadedLife {
             // Bots are real Character objects on the map but have no client streaming
             // MoveMonster packets, so a bot controller leaves the mob frozen. Exclude
             // them so only real players are ever auto-selected as controllers.
-            if (!chr.isHidden() && !BotHelpers.isBot(chr)) {
+            if (!chr.isHidden() && !BotHelpers.isBot(chr) && chr.isLoggedinWorld()) {
                 int ctrlMonsSize = chr.getNumControlledMonsters();
 
                 if (isCharacterPuppetInVicinity(chr)) {

@@ -1,23 +1,11 @@
-/**
- *
- * @author Arnah, Ronan
- */
-
-function start(mode, type, selection) {
-    qm.forceStartQuest();
-    qm.forceCompleteQuest();
-
-    var medalname = qm.getMedalName();
-    qm.message("<" + medalname + "> is not coded.");
-    qm.earnTitle("<" + medalname + "> has been awarded.");
+// WZ requirements and server-owned counters decide completion and rewards.
+var Medals = Java.type("server.content.Medals");
+var handled = false;
+function interact(mode) {
+    if (handled) { qm.dispose(); return; }
+    handled = true;
+    if (mode == 1) qm.sendOk(Medals.interact(qm.getPlayer(), qm.getQuest()));
     qm.dispose();
 }
-
-function end(mode, type, selection) {
-    qm.forceCompleteQuest();
-
-    var medalname = qm.getMedalName();
-    qm.message("<" + medalname + "> is not coded.");
-    qm.earnTitle("<" + medalname + "> has been awarded.");
-    qm.dispose();
-}
+function start(mode, type, selection) { interact(mode); }
+function end(mode, type, selection) { interact(mode); }

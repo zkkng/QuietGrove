@@ -12,9 +12,9 @@ import java.awt.Rectangle;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-// Makes a bot visibly take damage from mobs - contact/touch damage and fall damage - with organic
-// knockback and a broadcast hurt packet, but no HP and no death (bots are immortal; this renders the
-// look of getting hit only). Extracted and trimmed from GreenCatMS's BotCombatManager (HP loss,
+// Contact/touch and fall damage with recoil and hurt packets. Ordinary ambient actors retain the
+// legacy cosmetic behavior; companions and physically exposed event actors use authoritative
+// HP/MP, avoidance and death through CompanionIncomingDamage. Extracted from BotCombatManager (HP loss,
 // death/revive, danger-assessment, and the STANCE knockback roll all removed) and rebound from the
 // donor's BotEntry onto this package's BotMovementState. Credit: NutNNut.
 //
@@ -43,6 +43,8 @@ final class BotContactDamage {
     // foot-box by this much to catch wide mobs whose anchor sits just outside, then precision-check
     // each candidate with the real lower-half hitbox overlap.
     private static final int   MOB_QUERY_MARGIN       = 150;
+    // Multipart WZ bodies (notably Horntail heads) sit far above their shared map anchor.
+    private static final int   ACTIVE_MOB_QUERY_MARGIN = 750;
 
     // Damage number - option B: cosmetic, scaled off the mob's physical attack, never touches HP.
     private static final double DMG_FACTOR  = 0.5;   // multiplier on mob.getPADamage()
@@ -72,7 +74,9 @@ final class BotContactDamage {
     // Per bot per tick: if a hostile mob is touching the bot, apply a hit. LOD-gated (skips entirely
     // when no real player shares the bot's map) and i-frame-gated. Called from GCMovementDriver.tick.
     static void tickMobDamage(BotMovementState entry, Character bot) {
-        if (!GCMovement.isMapObserved(bot.getMapId())) {
+        soloMapling.ArtificialPlayer.CompanionSystem.CompanionIncomingDamage.environment(bot);
+        if (!GCMovement.isMapObserved(bot.getMapId())
+                && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) {
             entry.mobHitCooldownMs = 0; // reset i-frames so the first hit on re-entry is instant
             return;
         }
@@ -82,8 +86,7 @@ final class BotContactDamage {
                 entry.mobHitCooldownMs = BotMovementManager.tickDown(entry.mobHitCooldownMs);
                 return;
             }
-            Rectangle query = new Rectangle(getBotTouchBounds(entry, bot));
-            query.grow(MOB_QUERY_MARGIN, MOB_QUERY_MARGIN);
+            Rectangle query = contactQuery(entry,bot);
             for (MapObject obj : bot.getMap().getMapObjectsInRect(query, List.of(MapObjectType.MONSTER))) {
                 Monster mob = (Monster) obj;
                 if (!isHostileLivingMonster(mob)) {
@@ -99,10 +102,19 @@ final class BotContactDamage {
         }
     }
 
+    static Rectangle contactQuery(BotMovementState entry,Character bot) {
+        Rectangle query=new Rectangle(getBotTouchBounds(entry,bot));
+        int margin=soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)
+                ? ACTIVE_MOB_QUERY_MARGIN : MOB_QUERY_MARGIN;
+        query.grow(margin,margin);return query;
+    }
+
     // Apply one contact hit from the mob (or a miss flash).
     private static void applyMobHit(BotMovementState entry, Character bot, Monster mob) {
         double missChance = isThief(bot) ? THIEF_MISS_CHANCE : BASE_MISS_CHANCE;
         int dmg = ThreadLocalRandom.current().nextDouble() < missChance ? 0 : rollMobDamage(mob);
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot))
+            dmg = soloMapling.ArtificialPlayer.CompanionSystem.CompanionIncomingDamage.physical(bot, mob);
         MobHitKnockback kb = resolveMobHitKnockback(bot.getPosition(), mob.getPosition());
         applyDamage(entry, bot, dmg, -1, mob.getId(), kb.direction(), kb.airVelX());
     }
@@ -118,7 +130,7 @@ final class BotContactDamage {
     // BotPhysicsEngine tracks via entry.fallPeakPhysY. LOD- and threshold-gated. Called from
     // BotPhysicsEngine's landing transition.
     static void applyFallDamage(BotMovementState entry, Character bot, float fallDistancePx) {
-        if (!GCMovement.isMapObserved(bot.getMapId())) {
+        if (!GCMovement.isMapObserved(bot.getMapId()) && !soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) {
             return;
         }
         if (entry.mobHitCooldownMs > 0) {
@@ -152,6 +164,10 @@ final class BotContactDamage {
                                     int broadcastDirection, int knockbackAirVelX) {
         Point botPos = bot.getPosition();
 
+        if (soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(bot)) {
+            dmg = soloMapling.ArtificialPlayer.CompanionSystem.CompanionIncomingDamage.apply(bot, dmg, damageFrom == -3);
+            if (dmg < 0) return;
+        }
         bot.getMap().broadcastMessage(bot,
                 PacketCreator.damagePlayer(damageFrom, monsterId, bot.getId(), Math.max(0, dmg), 0,
                         broadcastDirection, false, 0, false, 0, 0, 0), false);
@@ -266,10 +282,11 @@ final class BotContactDamage {
     }
 
     // A living, hostile monster - alive and not a friendly (escort/PQ) mob.
-    private static boolean isHostileLivingMonster(Monster monster) {
+    static boolean isHostileLivingMonster(Monster monster) {
         return monster != null
                 && monster.isAlive()
-                && (monster.getStats() == null || !monster.getStats().isFriendly());
+                && !monster.isFake() && !monster.isEncounterMarker()
+                && (monster.getStats() == null || monster.getStats().bodyAttack && !monster.getStats().isFriendly());
     }
 
     // Package-visible so the attack layer can flag the pose after a swing (via GCMovement.markAlerted),

@@ -29,6 +29,12 @@ public class RaiseIncExpHandler extends AbstractPacketHandler {
 
         if (c.tryacquireClient()) {
             try {
+                if (itemid == server.content.MarketEgg.EGG || itemid == server.content.MarketEgg.GOLD) {
+                    c.getPlayer().dropMessage(5, server.content.MarketEgg.feed(c.getPlayer()));
+                    c.sendPacket(PacketCreator.enableActions());
+                    return;
+                }
+                if (InventoryType.getByType(inventorytype) == null || !c.getPlayer().haveItem(itemid)) return;
                 ItemInformationProvider ii = ItemInformationProvider.getInstance();
                 QuestConsItem consItem = ii.getQuestConsumablesInfo(itemid);
                 if (consItem == null) {
@@ -47,8 +53,10 @@ public class RaiseIncExpHandler extends AbstractPacketHandler {
 
                 int consId;
                 Inventory inv = chr.getInventory(InventoryType.getByType(inventorytype));
+                if (inv == null) return;
                 inv.lockInventory();
                 try {
+                    if (inv.getItem(slot) == null) return;
                     consId = inv.getItem(slot).getItemId();
                     if (!consumables.containsKey(consId) || !chr.haveItem(consId)) {
                         return;

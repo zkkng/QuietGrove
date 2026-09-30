@@ -45,10 +45,12 @@ public final class FamilyUseHandler extends AbstractPacketHandler {
         if (!YamlConfig.config.server.USE_FAMILY_SYSTEM) {
             return;
         }
-        FamilyEntitlement type = FamilyEntitlement.values()[p.readInt()];
+        int selection = p.readInt();
+        if (selection < 0 || selection >= FamilyEntitlement.values().length) return;
+        FamilyEntitlement type = FamilyEntitlement.values()[selection];
         int cost = type.getRepCost();
         FamilyEntry entry = c.getPlayer().getFamilyEntry();
-        if (entry.getReputation() < cost || entry.isEntitlementUsed(type)) {
+        if (entry == null || entry.getReputation() < cost || entry.isEntitlementUsed(type)) {
             return; // shouldn't even be able to request it
         }
         c.sendPacket(PacketCreator.getFamilyInfo(entry));
@@ -64,8 +66,9 @@ public final class FamilyUseHandler extends AbstractPacketHandler {
                             if (!FieldLimit.CANNOTMIGRATE.check(ownMap.getFieldLimit()) && !FieldLimit.CANNOTVIPROCK.check(targetMap.getFieldLimit())
                                     && (targetMap.getForcedReturnId() == MapId.NONE || MapId.isMapleIsland(targetMap.getId())) && targetMap.getEventInstance() == null) {
 
-                                c.getPlayer().changeMap(victim.getMap(), victim.getMap().getPortal(0));
-                                useEntitlement(entry, type);
+                                if (purchaseEntitlement(entry, type)) {
+                                    c.getPlayer().changeMap(victim.getMap(), victim.getMap().getPortal(0));
+                                }
                             } else {
                                 c.sendPacket(PacketCreator.sendFamilyMessage(75, 0)); // wrong message, but close enough. (client should check this first anyway)
                                 return;
@@ -78,9 +81,10 @@ public final class FamilyUseHandler extends AbstractPacketHandler {
                                     c.sendPacket(PacketCreator.sendFamilyMessage(74, 0));
                                     return;
                                 }
-                                InviteCoordinator.createInvite(InviteType.FAMILY_SUMMON, c.getPlayer(), victim, victim.getId(), c.getPlayer().getMap());
-                                victim.sendPacket(PacketCreator.sendFamilySummonRequest(c.getPlayer().getFamily().getName(), c.getPlayer().getName()));
-                                useEntitlement(entry, type);
+                                if (purchaseEntitlement(entry, type)) {
+                                    InviteCoordinator.createInvite(InviteType.FAMILY_SUMMON, c.getPlayer(), victim, victim.getId(), c.getPlayer().getMap());
+                                    victim.sendPacket(PacketCreator.sendFamilySummonRequest(c.getPlayer().getFamily().getName(), c.getPlayer().getName()));
+                                }
                             } else {
                                 c.sendPacket(PacketCreator.sendFamilyMessage(75, 0));
                                 return;
@@ -91,51 +95,17 @@ public final class FamilyUseHandler extends AbstractPacketHandler {
                     c.sendPacket(PacketCreator.sendFamilyMessage(67, 0));
                 }
             }
-        } else if (type == FamilyEntitlement.FAMILY_BONDING) {
-            //not implemented
         } else {
-            boolean party = false;
-            boolean isExp = false;
-            float rate = 1.5f;
-            int duration = 15;
-            do {
-                switch (type) {
-                    case PARTY_EXP_2_30MIN:
-                        party = true;
-                        isExp = true;
-                        type = FamilyEntitlement.SELF_EXP_2_30MIN;
-                        continue;
-                    case PARTY_DROP_2_30MIN:
-                        party = true;
-                        type = FamilyEntitlement.SELF_DROP_2_30MIN;
-                        continue;
-                    case SELF_DROP_2_30MIN:
-                        duration = 30;
-                    case SELF_DROP_2:
-                        rate = 2.0f;
-                    case SELF_DROP_1_5:
-                        break;
-                    case SELF_EXP_2_30MIN:
-                        duration = 30;
-                    case SELF_EXP_2:
-                        rate = 2.0f;
-                    case SELF_EXP_1_5:
-                        isExp = true;
-                    default:
-                        break;
-                }
-                break;
-            } while (true);
-            //not implemented
+            c.getPlayer().dropMessage(5, server.content.FamilyBenefits.use(c.getPlayer(), type));
         }
     }
 
-    private boolean useEntitlement(FamilyEntry entry, FamilyEntitlement entitlement) {
-        if (entry.useEntitlement(entitlement)) {
-            entry.gainReputation(-entitlement.getRepCost(), false);
+    private boolean purchaseEntitlement(FamilyEntry entry, FamilyEntitlement entitlement) {
+        if (entry.purchaseBenefit(entitlement)) {
             entry.getChr().sendPacket(PacketCreator.getFamilyInfo(entry));
             return true;
         }
+        entry.getChr().dropMessage(5, "The Family benefit could not be saved. Your reputation was not spent.");
         return false;
     }
 }

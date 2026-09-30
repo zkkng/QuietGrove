@@ -57,6 +57,7 @@ import net.server.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scripting.event.EventInstanceManager;
+import server.events.gm.GmEventService;
 import server.life.MobSkill;
 import service.NoteService;
 import soloMapling.ArtificialPlayer.BotHelpers;
@@ -259,6 +260,7 @@ public final class PlayerLoggedinHandler extends AbstractPacketHandler {
             player.sendPacket(PacketCreator.sendAutoMpPot(autompPot != null ? autompPot.getAction() : 0));
 
             player.getMap().addPlayer(player);
+            GmEventService.getInstance().reconcileLogin(player);
             player.visitMap(player.getMap());
 
             BuddyList bl = player.getBuddylist();

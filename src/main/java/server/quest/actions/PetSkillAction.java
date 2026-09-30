@@ -22,8 +22,6 @@
 package server.quest.actions;
 
 import client.Character;
-import client.QuestStatus;
-import constants.inventory.ItemConstants;
 import provider.Data;
 import provider.DataTool;
 import server.quest.Quest;
@@ -44,21 +42,20 @@ public class PetSkillAction extends AbstractQuestAction {
 
     @Override
     public void processData(Data data) {
-        flag = DataTool.getInt("petskill", data);
+        flag = DataTool.getInt(data);
+        if (flag != 128 && flag != 256) throw new IllegalArgumentException("Unsupported pet training skill " + flag);
     }
 
     @Override
     public boolean check(Character chr, Integer extSelection) {
-        QuestStatus status = chr.getQuest(Quest.getInstance(questID));
-        if (!(status.getStatus() == QuestStatus.Status.NOT_STARTED && status.getForfeited() > 0)) {
-            return false;
-        }
-
-        return chr.getPet(0) != null;
+        return server.content.SmartPets.untrained(chr, flag) != null;
     }
 
     @Override
     public void run(Character chr, Integer extSelection) {
-        chr.getPet(0).setFlag((byte) ItemConstants.getFlagByInt(flag));
+        var pet = server.content.SmartPets.untrained(chr, flag);
+        if (pet != null) {
+            pet.addPetAttribute(chr, flag == 128 ? client.inventory.Pet.PetAttribute.RECALL : client.inventory.Pet.PetAttribute.AUTO_SPEAK);
+        }
     }
-} 
+}

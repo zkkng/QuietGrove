@@ -211,7 +211,7 @@ public class TrainingBot extends BotSM {
         return super.lowPriorityDelayMs();
     }
 
-    private void combatTick() {
+    private synchronized void combatTick() {
         Character chr = getChr();
         if (chr == null || !getRunning() || phase != Phase.GRIND) {
             return; // gated; removal happens in leaveGrind()/stopScheduledTask()
@@ -298,6 +298,9 @@ public class TrainingBot extends BotSM {
         botType = "TrainingBot";
         dialoguePath = "TrainingBotDialogue.yaml";
     }
+    /** Save safe route intent only; no old timers, spot claims or closures survive companionship. */
+    public int companionHomeMapId() { return homeMapId >= 0 ? homeMapId : getChr().getMapId(); }
+    public void restoreCompanionHome(int mapId) { homeMapId = mapId; firstTrip = false; }
 
     @Override
     public void displayCommands(Character chr) {
@@ -386,7 +389,7 @@ public class TrainingBot extends BotSM {
 
     private void doInit() {
         ensureCombatTicker();
-        homeMapId = getChr().getMapId();
+        if (homeMapId < 0) homeMapId = getChr().getMapId();
         // No mobs here → it's a town: do the town beat first. Has mobs → a field: decide immediately.
         enterPhase(MapMobIndex.level(homeMapId) < 0 ? Phase.IN_TOWN : Phase.DECIDE);
     }

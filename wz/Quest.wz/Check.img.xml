@@ -62037,24 +62037,22 @@
   </imgdir>
   <imgdir name="8053">
     <imgdir name="1">
+      <string name="endscript" value="q8053e"/>
       <int name="npc" value="1081100"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8053s"/>
       <int name="npc" value="1002101"/>
-      <int name="lvmax" value="1"/>
-      <int name="pop" value="1000"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
     </imgdir>
   </imgdir>
   <imgdir name="8054">
     <imgdir name="1">
+      <string name="endscript" value="q8054e"/>
       <int name="npc" value="9120006"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8054s"/>
       <int name="npc" value="1081100"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8053"/>
@@ -62065,12 +62063,12 @@
   </imgdir>
   <imgdir name="8055">
     <imgdir name="1">
+      <string name="endscript" value="q8055e"/>
       <int name="npc" value="2012010"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8055s"/>
       <int name="npc" value="9120006"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8054"/>
@@ -62081,12 +62079,12 @@
   </imgdir>
   <imgdir name="8056">
     <imgdir name="1">
+      <string name="endscript" value="q8056e"/>
       <int name="npc" value="2041004"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8056s"/>
       <int name="npc" value="2012010"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8055"/>
@@ -62097,12 +62095,12 @@
   </imgdir>
   <imgdir name="8057">
     <imgdir name="1">
+      <string name="endscript" value="q8057e"/>
       <int name="npc" value="2020007"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8057s"/>
       <int name="npc" value="2041004"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8056"/>
@@ -62113,12 +62111,12 @@
   </imgdir>
   <imgdir name="8058">
     <imgdir name="1">
+      <string name="endscript" value="q8058e"/>
       <int name="npc" value="2050009"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8058s"/>
       <int name="npc" value="2020007"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8057"/>
@@ -62129,12 +62127,12 @@
   </imgdir>
   <imgdir name="8059">
     <imgdir name="1">
+      <string name="endscript" value="q8059e"/>
       <int name="npc" value="1002101"/>
     </imgdir>
     <imgdir name="0">
+      <string name="startscript" value="q8059s"/>
       <int name="npc" value="2050009"/>
-      <string name="start" value="2005010100"/>
-      <string name="end" value="2005010200"/>
       <imgdir name="quest">
         <imgdir name="0">
           <int name="id" value="8058"/>
