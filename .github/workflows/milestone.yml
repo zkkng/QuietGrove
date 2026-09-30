@@ -1,0 +1,45 @@
+name: Milestone build
+on:
+  push:
+    branches: [test, 'dev/**']
+  pull_request:
+    branches: [test, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: milestone-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+      - name: Compile and run the complete Java suite
+        run: mvn -B -ntp clean verify
+      - name: Package the exact committed runtime
+        if: github.ref == 'refs/heads/test' && github.event_name != 'pull_request'
+        run: python3 tools/release/package_release.py --output release
+      - name: Preserve test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.sha }}
+          path: target/surefire-reports/
+          retention-days: 30
+      - name: Save test candidate
+        if: github.ref == 'refs/heads/test' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-candidate-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 30
