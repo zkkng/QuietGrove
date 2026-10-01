@@ -50,7 +50,9 @@ GM content release was a new condition: PID29752, JAR7821b2eb2e468daa7fd6ba7cd94
 
 One invocation of the existing launch script produced live PID40832. Native startup reports Fly, Unlimited Attack and Rapid Attack ready; the corrected rapid identity guard now matches. Trainer PID34892 was opened. The game window remains white before login/network traffic. At 02:23 PDT the diagnostic heartbeat is responsive with criticalCount=0, minidumps=0 and rx/tx=0. This is not gameplay acceptance.
 
-A read-only dump and a brief x86 main-thread context capture identify graphics device initialization: win32u → d3d8 → nvd3dum → Gr2D_DX8 → proxy setup → native startup. Evidence is in parent `tmp/client-hang-20261001-022048/` and `tmp/client-wow64-20261001-022123/`. No login was automated, no powers were applied and no speculative GPU/client patch was made. The current startup issue and older Canvas fault remain unresolved. GM separately found and is repairing a bot-generation null-map regression in its combined server release; the current client is preserved for that coordinated restart.
+A read-only dump and a brief x86 main-thread context capture identify graphics device initialization: win32u → d3d8 → nvd3dum → Gr2D_DX8 → proxy setup → native startup. Evidence is in parent `tmp/client-hang-20261001-022048/` and `tmp/client-wow64-20261001-022123/`. No login was automated, no powers were applied and no speculative GPU/client patch was made.
+
+**02:27 PDT correction:** graphics initialization eventually returned in the same PID40832, with no diagnostic faults. The current dialog says the client was disconnected from the login server after the coordinated server restart. The prolonged white window is an observed startup delay, not a demonstrated permanent hang. GM repaired the separate bot-generation routing/null-map regression and deployed PID30717/JAR0a6a893458e9b8a53b37db1c09003b353f88c75ed483cd1b96656b5f5e49e9aa, config unchanged. The older Canvas gameplay fault remains unresolved. The client/error dialog is preserved; human authentication was not requested as an implementation gate.
 
 ## Local commit and upload
 
