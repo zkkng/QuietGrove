@@ -17,6 +17,10 @@ import java.util.concurrent.ScheduledFuture;
 
 /** Finite NPC GM show with genuine incident combat, staggered spawns and exact host/map ownership. */
 public final class WaveInvasionService {
+    // The 80-responder development trial overflowed one legacy client's outbound
+    // queue during the third Henesys wave (3,301 pending; oldest >10 seconds).
+    // Keep a visibly active defense while bounding per-viewer packet pressure.
+    private static final int HENESYS_TRIAL_RESPONDERS = 24;
     private static final WaveInvasionService INSTANCE = new WaveInvasionService();
     public static WaveInvasionService getInstance() { return INSTANCE; }
     private static final class Show {
@@ -61,7 +65,7 @@ public final class WaveInvasionService {
                     .filter(bot->EventBotRuntime.eligible(bot,channel.getWorld(),channel.getId()))
                     .sorted(Comparator.<soloMapling.ArtificialPlayer.BotSM>comparingInt(bot->bot.getChr().getLevel()).reversed()).toList();
             for (var previous:candidates) {
-                token=EventBotRuntime.reserve(previous,id,CompanionTaskService.EventRole.HOST,channel.getWorld(),channel.getId(),81).orElse(null);
+                token=EventBotRuntime.reserve(previous,id,CompanionTaskService.EventRole.HOST,channel.getWorld(),channel.getId(),HENESYS_TRIAL_RESPONDERS+1).orElse(null);
                 if (token==null) continue;
                 var lease=CompanionTaskService.shared().commitEvent(token).orElse(null);
                 if (lease==null) {CompanionTaskService.shared().releaseEvent(token.botId(),token.generation());token=null;continue;}
@@ -79,13 +83,13 @@ public final class WaveInvasionService {
                     else host.changeMap(map,portal);
                     if (host.getMap()!=map) throw new IllegalStateException("Host map entry failed");
                 }
-                announce(show,"I am hosting "+(mode.equals("bosses")?"Mushmom, Jr. Balrog, and Crimson Balrog waves":"a snail invasion")
+                announce(show,"I am hosting "+(mode.equals("bosses")?"normal, blue and zombie Mushmom plus Jr. Balrog waves":"a snail invasion")
                         +" in map "+mapId+", channel "+channel.getId()+". Starts in20 seconds; approach when ready."
-                        +" Bosses arrive one at a time, at least15 seconds apart. Maximum3 bosses or30 ordinary mobs alive.");
+                        +(mode.equals("bosses")?" Each wave starts with5-10 bosses, arriving one second apart; every3 minutes survivors are topped up toward7-10. Clear them all for the next wave immediately. Maximum10 live bosses.":" Maximum30 ordinary mobs alive."));
                 Show active=show;
                 show.timer=TimerManager.getInstance().register(()->tick(active),1000,1000);
                 if (show.closed) show.timer.cancel(false);
-                return "Hosted event "+id+" opened by "+GmHostPresentation.displayName(host)+". UNMEASURED development trial; finite existing population, active response limit80. Stop: !event stop-waves";
+                return "Hosted event "+id+" opened by "+GmHostPresentation.displayName(host)+". UNMEASURED development trial; finite existing population, active response limit"+HENESYS_TRIAL_RESPONDERS+". Stop: !event stop-waves";
             }
             return "No available existing bot can host this event.";
         } catch (RuntimeException failure) {
@@ -122,14 +126,17 @@ public final class WaveInvasionService {
         var token=show.sequence.next(System.currentTimeMillis());
         if (token==null) return;
         announce(show,"Wave"+(token.index()+1)+"/"+show.sequence.total()+": "+token.wave().encounter()+". The next wave waits for actual defeat.");
-        String result=IncidentService.getInstance().createHosted(show.host,show.id,token.wave().encounter(),token.wave().count(),80,show.position,
+        String result=IncidentService.getInstance().createHosted(show.host,show.id,token.wave().encounter(),token.wave().count(),HENESYS_TRIAL_RESPONDERS,show.position,
                 victory->completed(show,token,victory));
         if (!result.startsWith("Created ")) stop(show,result);
     }
     private void completed(Show show,WaveSequence.Token token,boolean victory) {
         if (show.closed || !show.sequence.complete(token,victory,System.currentTimeMillis())) return;
         if (show.sequence.closed()) stop(show,victory?"All waves were genuinely defeated":"The defense ended without victory");
-        else announce(show,"Wave cleared. The next wave starts in30 seconds.");
+        else {
+            announce(show,"Wave cleared. The next wave is starting.");
+            TimerManager.getInstance().schedule(()->tick(show),0);
+        }
     }
     public String stop(Character operator) {
         if (operator.gmLevel()<3) return "GM rank3 required.";
@@ -160,6 +167,6 @@ public final class WaveInvasionService {
     public synchronized String status(Channel channel) {
         Show show=shows.get(channel);
         return show==null?"No NPC GM wave event.":show.id+" host="+GmHostPresentation.displayName(show.host)
-                +"; completed="+show.sequence.completed()+"/"+show.sequence.total()+"; live caps=3 bosses/30 mobs; UNMEASURED.";
+                +"; completed="+show.sequence.completed()+"/"+show.sequence.total()+"; hosted boss cap=10; top-up every3 minutes toward7-10; ordinary cap=30; UNMEASURED.";
     }
 }

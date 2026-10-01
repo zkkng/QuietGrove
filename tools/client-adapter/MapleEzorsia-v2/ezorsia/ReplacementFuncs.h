@@ -1813,10 +1813,10 @@ static _sub_9F84D0_t _sub_9F84D0_rewrite = [](CWvsApp* pThis, void* edx, int tCu
 				_com_issue_error(-2147467261);//_sub_A5FDE4(-2147467261);//void __stdcall _com_issue_error(HRESULT hr)
 			}
 			auto v7 = *(int(__stdcall**)(IWzGr2D*, int))(*(int*)((*_dword_BF14EC).m_pInterface) + 24);
-			v7((*_dword_BF14EC).m_pInterface, v3->m_tUpdateTime);//unknown function//((int (__stdcall *)(IWzGr2D *, int))v2->vfptr[2].QueryInterface)(v2, tTime);
-			if ((HRESULT)v7 < 0)
+			const HRESULT updateResult = v7((*_dword_BF14EC).m_pInterface, v3->m_tUpdateTime);
+			if (FAILED(updateResult))
 			{//void __stdcall _com_issue_errorex(HRESULT hr, IUnknown* punk, _GUID* riid)//_sub_A5FDF2
-				_com_issue_errorex((HRESULT)v7, (IUnknown*)(*_dword_BF14EC).m_pInterface, *_unk_BD83B0);//GUID _GUID_e576ea33_d465_4f08_aab1_e78df73ee6d9
+				_com_issue_errorex(updateResult, (IUnknown*)(*_dword_BF14EC).m_pInterface, *_unk_BD83B0);
 			}
 		}
 		//v10 = -1; //stack frame counter of sorts for errors
@@ -1826,10 +1826,10 @@ static _sub_9F84D0_t _sub_9F84D0_rewrite = [](CWvsApp* pThis, void* edx, int tCu
 		_com_issue_error(-2147467261);//_sub_A5FDE4(-2147467261);//void __stdcall _com_issue_error(HRESULT hr)
 	}
 	auto v5 = *(int(__stdcall**)(IWzGr2D*, int))(*(int*)((*_dword_BF14EC).m_pInterface) + 24); //*(_DWORD *)dword_BF14EC + 24)
-	v5((*_dword_BF14EC).m_pInterface, tCurTime);//unknown function//((int (__stdcall *)(IWzGr2D *, int))v2->vfptr[2].QueryInterface)(v2, tTime);
-	if ((HRESULT)v5 < 0)
+	const HRESULT updateResult = v5((*_dword_BF14EC).m_pInterface, tCurTime);
+	if (FAILED(updateResult))
 	{//void __stdcall _com_issue_errorex(HRESULT hr, IUnknown* punk, _GUID* riid)//_sub_A5FDF2
-		_com_issue_errorex((HRESULT)v5, (IUnknown*)((*_dword_BF14EC).m_pInterface), *_unk_BD83B0);//GUID _GUID_e576ea33_d465_4f08_aab1_e78df73ee6d9
+		_com_issue_errorex(updateResult, (IUnknown*)((*_dword_BF14EC).m_pInterface), *_unk_BD83B0);
 	}//void __thiscall CActionMan::SweepCache(CActionMan* this)
 	_sub_411BBB(*_dword_BE78D4);//CActionMan *TSingleton<CActionMan>::ms_pInstance
 };	const wchar_t* v13;
@@ -2105,7 +2105,9 @@ static _sub_9F5C50_t _sub_9F5C50_rewrite = [](CWvsApp* pThis, void* edx, int* pb
 				//{
 					_com_raise_error(v15, nullptr);//_sub_A605C3(v15, nullptr);//void __stdcall _com_raise_error(HRESULT hr, IErrorInfo *perrinfo)
 				}
-				if (FAILED(v4->m_hrZExceptionCode))//if (v4[13])
+				// Native ZException codes include positive values (captured code5).
+				// Ignoring these lets the loop update a field after exception cleanup.
+				if (v4->m_hrZExceptionCode != 0)//original: if (v4[13])
 				{
 					v15 = v4->m_hrZExceptionCode;//v15 = v4[13];
 					v4->m_hrComErrorCode = 0;//v4[14] = 0;
@@ -2356,11 +2358,10 @@ static _IWzFileSystem__Init_t _sub_9F7964_Hook = [](void* pThis, void* edx, Ztl_
 		v3 = sPath.m_Data->m_wstr;
 	}
 	auto v4 = (*(int(__stdcall**)(void*, wchar_t*))(*(DWORD*)pThis + 52));//overloaded unknown funct at offset 52 of IWzFileSystem
-	v4(pThis, v3);//seems to do nothing and just check the input, works if not run
-	v5 = (HRESULT)v4;
-	if ((HRESULT)v4 < 0)
+	v5 = v4(pThis, v3);
+	if (FAILED(v5))
 	{
-		_com_issue_errorex((HRESULT)v4, (IUnknown*)v2, *_unk_BE2EC0);//GUID _GUID_352d8655_51e4_4668_8ce4_0866e2b6a5b5
+		_com_issue_errorex(v5, (IUnknown*)v2, *_unk_BE2EC0);
 	}
 	if (sPath.m_Data)
 	{
@@ -2416,11 +2417,14 @@ static _sub_5D995B_t _sub_5D995B_Hook = [](void* pThis, void* edx, Ztl_variant_t
 	{
 		ZSecureCrypt_Init = true; v4 = v13;
 	}
-	v5(v3, v4, &pvarg);
+	const HRESULT itemResult = v5(v3, v4, &pvarg);
 	//std::cout << "_sub_5D995B vals: " << *(DWORD*)v3 << " / " << *v4 << " / " << *(DWORD*)(&pvarg) << std::endl;//Sleep(22000);
-	if ((HRESULT)v5 < 0)
+	if (FAILED(itemResult))
 	{
-		_com_issue_errorex((HRESULT)v5, (IUnknown*)v3, *_unk_BD8F28); ///GUID _GUID_2aeeeb36_a4e1_4e2b_8f6f_2e7bdec5c53d
+		// The native ABI consumes this by-value path on both outcomes.
+		VariantClear(&pvarg);
+		if (sPath.m_Data) { _sub_402EA5(sPath.m_Data); }
+		_com_issue_errorex(itemResult, (IUnknown*)v3, *_unk_BD8F28);
 	}
 	_sub_4039AC(result, &pvarg, 0);//non-existent func in v95//int __thiscall sub_4039AC(VARIANTARG *pvargDest, VARIANTARG *pvargSrc, char) //works with v95 overwrite//memcpy_s(result, 0x10u, &pvarg, 0x10u);//_sub_4039AC(result, &pvarg, 0); //works with v95 overwrite
 	pvarg.vt = 0;

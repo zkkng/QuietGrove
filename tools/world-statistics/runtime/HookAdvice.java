@@ -4,11 +4,11 @@ import server.statistics.WorldStatistics;
 import client.inventory.Item;
 public final class HookAdvice {
  public static class Packet {
-  @Advice.OnMethodEnter(suppress=Throwable.class) static int enter(@Advice.Argument(1) Object client,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();oldActor=ctx.actor;int old=ctx.code;WorldStatistics.scope(1|(1<<8),WorldStatistics.actor(client));return old;}
+  @Advice.OnMethodEnter(suppress=Throwable.class) static int enter(@Advice.Argument(1) Object client,@Advice.Origin("#t") String type,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();oldActor=ctx.actor;int old=ctx.code;int reason=type.endsWith("ScrollHandler")?4:type.endsWith("RangedAttackHandler")?2:type.endsWith("MakerSkillHandler")?5:1;WorldStatistics.scope(reason|(1<<8),WorldStatistics.actor(client));return old;}
   @Advice.OnMethodExit(onThrowable=Throwable.class,suppress=Throwable.class) static void exit(@Advice.Enter int old,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();ctx.code=old;ctx.actor=oldActor;}
  }
  public static class ActorScope {
-  @Advice.OnMethodEnter(suppress=Throwable.class) static int enter(@Advice.Argument(0) Object player,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();oldActor=ctx.actor;int old=ctx.code;WorldStatistics.scope(3|(3<<8),player);return old;}
+  @Advice.OnMethodEnter(suppress=Throwable.class) static int enter(@Advice.Argument(0) Object player,@Advice.Origin("#m") String operation,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();oldActor=ctx.actor;int old=ctx.code;int reason=operation.equals("potion")||operation.equals("cureItem")?1:operation.equals("payAttack")?2:operation.equals("start")||operation.equals("complete")?6:3;int method=((client.Character)player).getClient() instanceof client.BotClient?3:1;WorldStatistics.scope(reason|(method<<8),player);return old;}
   @Advice.OnMethodExit(onThrowable=Throwable.class,suppress=Throwable.class) static void exit(@Advice.Enter int old,@Advice.Local("oldActor") Object oldActor){var ctx=WorldStatistics.context();ctx.code=old;ctx.actor=oldActor;}
  }
  public static class PetScope {

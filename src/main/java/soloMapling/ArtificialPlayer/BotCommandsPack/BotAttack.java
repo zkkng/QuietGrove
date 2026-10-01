@@ -104,6 +104,17 @@ public final class BotAttack {
      * keydown CHARGE skill (Big Bang) over-reads the packet and CRASHES viewers, so it must be sent.
      * Pure visual.
      */
+    public static void rangedSwing(Character chr, int skillId) {
+        if (chr == null || chr.getMap() == null) return;
+        if (skillId <= 0) { basicSwing(chr); return; }
+        WeaponType weapon = resolveEquippedWeaponType(chr);
+        int facingMask = facingLeft(chr) ? BotAttackData.FACING_LEFT_MASK : BotAttackData.FACING_RIGHT_MASK;
+        chr.getMap().broadcastMessage(chr,
+                PacketCreator.rangedAttack(chr, skillId, resolveSkillLevel(skillId), facingMask,
+                        0, BotAttackData.projectileFor(weapon, chr), Collections.emptyMap(),
+                        BotAttackData.DEFAULT_ATTACK_SPEED, BotAttackData.actionFor(skillId, weapon), 0), false);
+    }
+
     public static void magicSwing(Character chr, int skillId) {
         if (chr == null || chr.getMap() == null || skillId <= 0) return;
 

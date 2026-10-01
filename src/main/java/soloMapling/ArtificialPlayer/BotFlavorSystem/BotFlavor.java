@@ -158,9 +158,9 @@ public final class BotFlavor {
         int skillId = profile.skillFor(weapon);
         if (profile.route == BotAttackProfile.Route.MAGIC) {
             BotAttack.magicSwing(chr, skillId);
+        } else if (profile.route == BotAttackProfile.Route.RANGED) {
+            BotAttack.rangedSwing(chr, skillId);
         } else {
-            // CLOSE and RANGED both render through the close-range pose path; skillSwing falls back to
-            // a plain weapon swing when the skill id is 0.
             BotAttack.skillSwing(chr, skillId);
         }
     }

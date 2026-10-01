@@ -26,8 +26,8 @@ public final class WorldStatistics {
     private static final AtomicBoolean STARTED=new AtomicBoolean();
     private static final ThreadLocal<Context> CONTEXT=ThreadLocal.withInitial(Context::new);
     private static final int[] QUEST_AREA=new int[65536];
-    private static final Map<String,Integer> PQ_IDS=new HashMap<>();
-    private static final Map<Integer,Integer> JQ_MAPS=new HashMap<>();
+    private static final Map<String,Integer> PQ_IDS=new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<Integer,Integer> JQ_MAPS=new java.util.concurrent.ConcurrentHashMap<>();
     private static volatile boolean running;
     private static Thread thread;
     private static final String EPOCH="world-2026-09-30";
@@ -182,14 +182,14 @@ public final class WorldStatistics {
     }
     private static void health(Path dir,StatisticsWorker worker,StatisticsAccumulator accumulator,long now)throws IOException{
         var h=RECORDER.health();
-        String json="{\"epoch\":\""+EPOCH+"\",\"at\":"+now+",\"enabled\":"+RECORDER.isEnabled()+",\"accepted\":"+h.accepted()+",\"queued\":"+h.queued()+",\"rejectedByMetric\":"+Arrays.toString(h.rejectedByMetric())+",\"accumulatorDropped\":"+accumulator.droppedFacts()+",\"committedBatches\":"+worker.committedBatches()+",\"lastDurableAt\":"+worker.lastDurableAt()+",\"coverage\":\"partial\"}\\n";
+        String json="{\"epoch\":\""+EPOCH+"\",\"at\":"+now+",\"enabled\":"+RECORDER.isEnabled()+",\"accepted\":"+h.accepted()+",\"queued\":"+h.queued()+",\"rejectedByMetric\":"+Arrays.toString(h.rejectedByMetric())+",\"accumulatorDropped\":"+accumulator.droppedFacts()+",\"committedBatches\":"+worker.committedBatches()+",\"lastDurableAt\":"+worker.lastDurableAt()+",\"coverage\":\"partial\"}\n";
         Path temp=dir.resolve("health.tmp");Files.writeString(temp,json);
         Files.move(temp,dir.resolve("health.json"),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
         LOG.info("WORLD_STATS_HEALTH accepted={} rejected={} accumulatorDropped={} committedBatches={}",h.accepted(),Arrays.toString(h.rejectedByMetric()),accumulator.droppedFacts(),worker.committedBatches());
     }
     public static void main(String[] args)throws Exception{
         try(HikariDataSource ds=dataSource()){
-            if(args.length==1 && args[0].equals("db-check")){schema(ds);dbCheck(ds);return;}
+            if(args.length==1 && args[0].equals("db-check")){schema(ds);catalog(ds);dbCheck(ds);return;}
             if(args.length!=1 || !args[0].equals("inspect"))throw new IllegalArgumentException("db-check or inspect");
             try(Connection c=ds.getConnection();Statement s=c.createStatement()){
                 s.setQueryTimeout(3);

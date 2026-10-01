@@ -76,4 +76,16 @@ class StatisticsJournalTest {
             first.appendAndSync(batch(1));
         }
     }
+
+    @Test void acknowledgedCompactionAcceptsNewFramesAndReopensCleanly() throws Exception {
+        Path path=directory.resolve("compact");
+        try(var journal=new StatisticsJournal(path,4096)){
+            journal.appendAndSync(batch(1));journal.resetAcknowledged();assertEquals(0,journal.size());
+            journal.appendAndSync(batch(2));
+        }
+        try(var journal=new StatisticsJournal(path,4096)){
+            List<Long> frames=new ArrayList<>();journal.replay(b->frames.add(b.sequence()));
+            assertEquals(List.of(2L),frames);
+        }
+    }
 }

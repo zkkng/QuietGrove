@@ -65,17 +65,19 @@ public class SocialBot extends BotSM {
     private volatile boolean relocating = false; // owns movement during a drift walk; blocks ambient actions
     private volatile long nextChairActionMs = 0;
     private volatile long nextRelocateAtMs = 0;
+    private boolean relocationWasObserved = false;
 
-    // Loiter tuning (candidates for a live !env chatter/loiter readout). Chair sit/stand is rare so it reads
-    // as a real person resting, not a metronome; relocation is a slow per-bot drift, biased to happen while
-    // unobserved so players just find bots in fresh spots.
+    // Chair sit/stand remains rare. A watched town crowd walks often enough to
+    // look alive; offscreen bots retain their slower background cadence.
     private static final double IDLE_CHAIR_CHANCE = 0.04;      // per eligible observed tick
     private static final long IDLE_CHAIR_COOLDOWN_MIN_MS = 60_000;
     private static final long IDLE_CHAIR_COOLDOWN_MAX_MS = 180_000;
     private static final long RELOCATE_MIN_MS = 180_000;       // 3 min
     private static final long RELOCATE_MAX_MS = 480_000;       // 8 min
-    private static final double OBSERVED_RELOCATE_CHANCE = 0.15; // usually defer a drift while watched
-    private static final long OBSERVED_DEFER_MS = 30_000;      // retry window when we defer an observed drift
+    private static final long OBSERVED_RELOCATE_MIN_MS = 30_000;
+    private static final long OBSERVED_RELOCATE_MAX_MS = 70_000;
+    private static final double OBSERVED_RELOCATE_CHANCE = 0.90;
+    private static final long OBSERVED_DEFER_MS = 8_000;
 
     private static final String[] INTERACTIVE_OPTIONS = {
             "What's up?",
@@ -187,7 +189,8 @@ public class SocialBot extends BotSM {
         // (or a crowd reacting to a player's arrival) doesn't sit / drift in lockstep.
         long now = System.currentTimeMillis();
         nextChairActionMs = now + (long) (random.nextDouble() * IDLE_CHAIR_COOLDOWN_MAX_MS);
-        nextRelocateAtMs = now + RELOCATE_MIN_MS + (long) (random.nextDouble() * (RELOCATE_MAX_MS - RELOCATE_MIN_MS));
+        relocationWasObserved = GCMovement.isMapObserved(chr.getMapId());
+        nextRelocateAtMs = now + relocationDelayMs(relocationWasObserved);
         townClaimed = true;
     }
 
@@ -214,9 +217,10 @@ public class SocialBot extends BotSM {
                 + (long) (random.nextDouble() * (IDLE_CHAIR_COOLDOWN_MAX_MS - IDLE_CHAIR_COOLDOWN_MIN_MS));
     }
 
-    // Rare drift to a fresh anchor-weighted spot ("stand near the potion shop a while, then wander to the
-    // smithy"). Preferably fires while unobserved (bots just appear in new spots); a watched stroll is
-    // allowed but rare. The walk is a BLOCKING old-engine pathfind, run synchronously on the tick as
+    // Drift to a fresh anchor-weighted spot ("stand near the potion shop a while, then wander to the
+    // smithy"). When a player enters, shorten an offscreen timer with staggered jitter so an already
+    // populated town starts moving soon without making its crowd act in lockstep.
+    // The walk is a BLOCKING old-engine pathfind, run synchronously on the tick as
     // deliberate choreography (the bot is intentionally inert while it strolls; relocating gates it out of
     // other ambient actions and partner selection).
     private void maybeRelocate() {
@@ -228,11 +232,16 @@ public class SocialBot extends BotSM {
             return;
         }
         long now = System.currentTimeMillis();
+        boolean observed = GCMovement.isMapObserved(chr.getMapId());
+        if (observed && !relocationWasObserved) {
+            nextRelocateAtMs = Math.min(nextRelocateAtMs, now + relocationDelayMs(true));
+        }
+        relocationWasObserved = observed;
         if (now < nextRelocateAtMs) {
             return;
         }
-        if (GCMovement.isMapObserved(chr.getMapId()) && random.nextDouble() >= OBSERVED_RELOCATE_CHANCE) {
-            nextRelocateAtMs = now + OBSERVED_DEFER_MS; // defer: prefer to drift while nobody's watching
+        if (observed && random.nextDouble() >= OBSERVED_RELOCATE_CHANCE) {
+            nextRelocateAtMs = now + OBSERVED_DEFER_MS;
             return;
         }
         relocating = true;
@@ -243,9 +252,14 @@ public class SocialBot extends BotSM {
             TownStation.relocate(chr, townAnchor);
         } finally {
             relocating = false;
-            nextRelocateAtMs = System.currentTimeMillis() + RELOCATE_MIN_MS
-                    + (long) (random.nextDouble() * (RELOCATE_MAX_MS - RELOCATE_MIN_MS));
+            nextRelocateAtMs = System.currentTimeMillis() + relocationDelayMs(observed);
         }
+    }
+
+    private static long relocationDelayMs(boolean observed) {
+        long min = observed ? OBSERVED_RELOCATE_MIN_MS : RELOCATE_MIN_MS;
+        long max = observed ? OBSERVED_RELOCATE_MAX_MS : RELOCATE_MAX_MS;
+        return min + (long) (random.nextDouble() * (max - min));
     }
 
     private Point resolveTownAnchor(Character chr) {

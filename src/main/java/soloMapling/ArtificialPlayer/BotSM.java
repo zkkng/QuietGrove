@@ -23,6 +23,7 @@ import soloMapling.server.BotTickService;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static soloMapling.ArtificialPlayer.BotCommandsPack.SocialCommands.botClearChalkboard;
 import static soloMapling.ArtificialPlayer.BotMessagingSystem.CharacterStorage.botLoggedIn;
@@ -70,8 +71,13 @@ public abstract class BotSM implements EventSubscriber {
     private static MessageQueue messageQueue = MessageQueue.getInstance();
 
     // One shared tick body for every (re)schedule path - start / priority change / nudge.
+    // Movement replay may sleep for several seconds. An intrinsic monitor held
+    // across that sleep pins a Java 21 virtual thread to its carrier and can
+    // starve every other ambient bot. ReentrantLock keeps per-bot tick state
+    // serialized while allowing the sleeping virtual thread to unmount.
+    private final ReentrantLock tickLock = new ReentrantLock();
     private final Runnable tickRunnable = () -> {
-        synchronized (this) {
+        tickLock.lock();
         try {
             if (soloMapling.ArtificialPlayer.BotMessagingSystem.CharacterStorage.getBotById(getChr().getId()) != this) return;
             if (server.events.gm.IncidentService.handleAmbientDeath(this)) return;
@@ -82,7 +88,8 @@ public abstract class BotSM implements EventSubscriber {
             updateState();
         } catch (Exception e) {
             e.printStackTrace(); // Handle exceptions to ensure the scheduler doesn't stop unexpectedly
-        }
+        } finally {
+            tickLock.unlock();
         }
     };
 

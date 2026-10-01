@@ -88,7 +88,8 @@ void logEvent(const char* message) {
         time.wDay, time.wHour, time.wMinute, time.wSecond, GetCurrentProcessId(), message);
     if (length > 0) {
         DWORD written = 0;
-        WriteFile(file, line, static_cast<DWORD>(length), &written, nullptr);
+        const DWORD boundedLength = static_cast<DWORD>(length < sizeof(line) ? length : sizeof(line) - 1);
+        WriteFile(file, line, boundedLength, &written, nullptr);
     }
     CloseHandle(file);
 }
