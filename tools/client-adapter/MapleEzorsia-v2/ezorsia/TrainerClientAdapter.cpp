@@ -38,7 +38,7 @@ constexpr unsigned char kFallThroughEnabled[2] = { 0x90, 0x90 };
 constexpr unsigned char kSkillEffectOriginal[5] = { 0xB8, 0x34, 0xC3, 0xAD, 0x00 };
 constexpr unsigned char kSkillEffectHidden[5] = { 0xC2, 0x14, 0x00, 0x90, 0x90 };
 constexpr unsigned char kNoAttackDelayOriginal[10] =
-    { 0xB8, 0x88, 0xB7, 0xAD, 0x00, 0xE8, 0xDC, 0x1C, 0x13, 0x00 };
+    { 0xB8, 0x88, 0xB7, 0xAD, 0x00, 0xE8, 0xDC, 0x1D, 0x13, 0x00 };
 constexpr unsigned char kNoAttackDelayEnabled[10] =
     { 0x6A, 0x01, 0x58, 0xC2, 0x10, 0x00, 0x90, 0x90, 0x90, 0x90 };
 DWORD kFlyXReturn = kFlyX + 5;
@@ -215,6 +215,8 @@ __declspec(naked) void flyXHook() {
         pushfd
         push ecx
         push edx
+        test ebx, ebx
+        je noXOutput
         mov ecx, dword ptr ds:[0x00BEBF98]
         test ecx, ecx
         je original
@@ -233,6 +235,12 @@ __declspec(naked) void flyXHook() {
         mov [ebx], eax
         mov edi, [ebp + 0x10]
         jmp dword ptr [kFlyXReturn]
+    noXOutput:
+        pop edx
+        pop ecx
+        popfd
+        mov edi, [ebp + 0x10]
+        jmp dword ptr [kFlyXReturn]
     }
 }
 
@@ -241,6 +249,8 @@ __declspec(naked) void flyYHook() {
         pushfd
         push ecx
         push edx
+        test edi, edi
+        je noYOutput
         mov ecx, dword ptr ds:[0x00BEBF98]
         test ecx, ecx
         je original
@@ -278,17 +288,53 @@ __declspec(naked) void flyYHook() {
         mov [edi], eax
         mov ebx, [ebp + 0x14]
         jmp dword ptr [kFlyYReturn]
+    noYOutput:
+        pop edx
+        pop ecx
+        popfd
+        mov ebx, [ebp + 0x14]
+        jmp dword ptr [kFlyYReturn]
     }
 }
 
 bool installFly() {
+    // These branches originally skip the optional output write and enter the
+    // second MOV. A five-byte JMP overwrites that landing instruction. Redirect
+    // them to the guarded hook entry, which preserves the no-output path.
+    constexpr unsigned char xBranch[2] = { 0x74, 0x58 };
+    constexpr unsigned char yBranch[2] = { 0x74, 0x5E };
     if (!readable(kFlyX, 5) || !readable(kFlyY, 5)
+        || !readable(0x009B6295, 2) || !readable(0x009B62F4, 2)
+        || std::memcmp(reinterpret_cast<void*>(0x009B6295), xBranch, 2) != 0
+        || std::memcmp(reinterpret_cast<void*>(0x009B62F4), yBranch, 2) != 0
         || std::memcmp(reinterpret_cast<void*>(kFlyX), kFlyXOriginal, 5) != 0
         || std::memcmp(reinterpret_cast<void*>(kFlyY), kFlyYOriginal, 5) != 0) return false;
-    // Validate both sites before changing either. A failed second patch leaves
-    // the first hook harmless with flyEnabled=0, and reports unsupported.
-    if (!patchJump(kFlyX, flyXHook, kFlyXOriginal)) return false;
-    return patchJump(kFlyY, flyYHook, kFlyYOriginal);
+    // One startup-only protection window avoids a partially installed pair.
+    // No flight state is enabled during installation.
+    DWORD oldProtection = 0;
+    constexpr DWORD start = 0x009B6295, length = 0x009B6357-start;
+    if (!VirtualProtect(reinterpret_cast<void*>(start), length, PAGE_EXECUTE_READWRITE, &oldProtection)) return false;
+    unsigned char xJump[5] = { 0xE9 }, yJump[5] = { 0xE9 };
+    const DWORD xRelative = reinterpret_cast<DWORD>(flyXHook)-kFlyX-5;
+    const DWORD yRelative = reinterpret_cast<DWORD>(flyYHook)-kFlyY-5;
+    std::memcpy(xJump+1, &xRelative, 4); std::memcpy(yJump+1, &yRelative, 4);
+    std::memcpy(reinterpret_cast<void*>(kFlyX), xJump, 5);
+    std::memcpy(reinterpret_cast<void*>(kFlyY), yJump, 5);
+    *reinterpret_cast<unsigned char*>(0x009B6296) = 0x56;
+    *reinterpret_cast<unsigned char*>(0x009B62F5) = 0x5C;
+    FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(start), length);
+    DWORD ignored = 0;
+    if (!VirtualProtect(reinterpret_cast<void*>(start), length, oldProtection, &ignored)) {
+        // Still writable: restore every original instruction before rejection.
+        std::memcpy(reinterpret_cast<void*>(kFlyX), kFlyXOriginal, 5);
+        std::memcpy(reinterpret_cast<void*>(kFlyY), kFlyYOriginal, 5);
+        std::memcpy(reinterpret_cast<void*>(start), xBranch, 2);
+        std::memcpy(reinterpret_cast<void*>(0x009B62F4), yBranch, 2);
+        FlushInstructionCache(GetCurrentProcess(), reinterpret_cast<void*>(start), length);
+        VirtualProtect(reinterpret_cast<void*>(start), length, oldProtection, &ignored);
+        return false;
+    }
+    return true;
 }
 
 void reply(HANDLE pipe, const char* message) {
@@ -583,3 +629,101 @@ void TrainerClientAdapter::Tick() {
         lastCpuFrame = GetTickCount64();
     }
 }
+
+#ifdef TRAINER_NATIVE_TEST
+namespace {
+DWORD testEax,testEbx,testEcx,testEdx,testEdi,testFlags;
+DWORD testXEntry=0x009B6295,testYEntry=0x009B62F4;
+BYTE testNativeAddressReserve[0xC00000];
+__declspec(naked) void testContinuation() {
+    __asm {
+        mov [testEax], eax
+        mov [testEbx], ebx
+        mov [testEcx], ecx
+        mov [testEdx], edx
+        mov [testEdi], edi
+        pushfd
+        pop [testFlags]
+        pop edi
+        pop esi
+        pop ebx
+        pop ebp
+        ret
+    }
+}
+__declspec(naked) void __cdecl invokeX(DWORD*,DWORD,DWORD,DWORD) {
+    __asm {
+        push ebp
+        mov ebp, esp
+        push ebx
+        push esi
+        push edi
+        mov ebx, [ebp+8]
+        mov eax, [ebp+0Ch]
+        xor esi, esi
+        mov ecx, 12345678h
+        mov edx, 23456789h
+        test ebx, ebx
+        stc
+        jmp dword ptr [testXEntry]
+    }
+}
+__declspec(naked) void __cdecl invokeY(DWORD*,DWORD,DWORD,DWORD) {
+    __asm {
+        push ebp
+        mov ebp, esp
+        push ebx
+        push esi
+        push edi
+        mov edi, [ebp+8]
+        mov eax, [ebp+0Ch]
+        xor esi, esi
+        mov ecx, 12345678h
+        mov edx, 23456789h
+        test edi, edi
+        stc
+        jmp dword ptr [testYEntry]
+    }
+}
+}
+int main() {
+    // Execute the production naked hooks with actual optional output pointers,
+    // native stack slots and registers. No game process is needed.
+    // Reserve the native fixture addresses inside this test image before CRT
+    // heap initialization; ordinary late VirtualAlloc can collide with its heap.
+    if(reinterpret_cast<DWORD>(testNativeAddressReserve)>0x00920000
+       ||reinterpret_cast<DWORD>(testNativeAddressReserve)+sizeof(testNativeAddressReserve)<0x00BF0000)return 1;
+    void* globals=reinterpret_cast<void*>(0x00BE0000);
+    void* fixture=reinterpret_cast<void*>(0x009B0000);DWORD protection=0;
+    memset(globals,0,65536);
+    if(!VirtualProtect(fixture,65536,PAGE_EXECUTE_READWRITE,&protection))return 4;
+    memset(fixture,0x90,65536);
+    memcpy(reinterpret_cast<void*>(0x009B6295),"\x74\x58",2);
+    memcpy(reinterpret_cast<void*>(0x009B62F4),"\x74\x5E",2);
+    memcpy(reinterpret_cast<void*>(kFlyX),kFlyXOriginal,5);
+    memcpy(reinterpret_cast<void*>(kFlyY),kFlyYOriginal,5);
+    const DWORD xForward=kFlyX-0x009B6297-5,yForward=kFlyY-0x009B62F6-5;
+    *reinterpret_cast<BYTE*>(0x009B6297)=0xE9;memcpy(reinterpret_cast<void*>(0x009B6298),&xForward,4);
+    *reinterpret_cast<BYTE*>(0x009B62F6)=0xE9;memcpy(reinterpret_cast<void*>(0x009B62F7),&yForward,4);
+    if(!installFly()||*reinterpret_cast<BYTE*>(0x009B6296)!=0x56||*reinterpret_cast<BYTE*>(0x009B62F5)!=0x5C)return 5;
+    kFlyXReturn=kFlyYReturn=reinterpret_cast<DWORD>(testContinuation);
+    for(int i=0;i<10000;++i){
+        DWORD output=0;DWORD* pointer=i%2?&output:nullptr;
+        invokeX(pointer,0x3456789A,0x456789AB,0x56789ABC);
+        if((pointer&&output!=0x3456789A)||testEax!=0x3456789A||testEdi!=0x456789AB
+            ||testEcx!=0x12345678||testEdx!=0x23456789||!(testFlags&1))return 2;
+        invokeY(pointer,0x3456789A,0x456789AB,0x56789ABC);
+        if((pointer&&output!=0x3456789A)||testEax!=0x3456789A||testEbx!=0x56789ABC
+            ||testEcx!=0x12345678||testEdx!=0x23456789||!(testFlags&1))return 3;
+    }
+    void* rapidFixture=reinterpret_cast<void*>(0x00920000);
+    if(!VirtualProtect(rapidFixture,65536,PAGE_EXECUTE_READWRITE,&protection))return 6;
+    memcpy(reinterpret_cast<void*>(kNoAttackDelay),kNoAttackDelayOriginal,10);rapidSupported=true;
+    if(!setRapidAttack(true))return 7;
+    const auto rapid=reinterpret_cast<int(__stdcall*)(int,int,int,int)>(kNoAttackDelay);
+    for(int i=0;i<10000;++i)if(rapid(1,2,3,4)!=1)return 8;
+    if(!setRapidAttack(false)||memcmp(reinterpret_cast<void*>(kNoAttackDelay),kNoAttackDelayOriginal,10))return 9;
+    std::puts("PASS production fly installation + incoming native branches: 10000 X + 10000 Y calls, null/valid outputs, tail registers, flags, stack and values preserved; rapid actual x86 ret16 gate 10000 calls + exact OFF restoration");
+    return 0;
+}
+#endif

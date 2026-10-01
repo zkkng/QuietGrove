@@ -71,7 +71,12 @@ namespace SoloTrainer {
         private string resetGeneration;
         private ClientAdapter(NamedPipeClientStream stream,int gameProcessId) { pipe=stream; GameProcessId=gameProcessId; }
         public static ClientAdapter TryConnect() {
-            var games=Process.GetProcessesByName("MapleStory");
+            var liveGames=new List<Process>();
+            foreach(var game in Process.GetProcessesByName("MapleStory")) {
+                try { if(!game.HasExited) liveGames.Add(game); else game.Dispose(); }
+                catch(InvalidOperationException) { game.Dispose(); }
+            }
+            var games=liveGames.ToArray();
             if(games.Length!=1) { LastError="Expected one MapleStory process; found "+games.Length; return null; }
             var stream=new NamedPipeClientStream(".","SoloTrainerClient-"+games[0].Id,PipeDirection.InOut,PipeOptions.Asynchronous);
             try {
@@ -502,6 +507,20 @@ namespace SoloTrainer {
             refreshObservations.Click+=async delegate { await RefreshObservations(); }; tabs.TabPages.Add(observations);
             var about=new TabPage("NFO / queued"); about.BackColor=BackColor; about.ForeColor=neon;
             var notes=new Label(); notes.Dock=DockStyle.Fill; notes.Padding=new Padding(12); notes.Text="CLICK EACH SWITCH TO APPLY IMMEDIATELY.\r\n\r\nMob Vac: real monsters group ahead of your facing direction.\r\nItem/Meso Vac: eligible drops, full map or radius, auto/key sweep.\r\nFMA expands real close-range swings, including empty swings.\r\nMouse Fly uses the separate client adapter.\r\nNo automatic attack key input: your movement and attack key stay yours."; about.Controls.Add(notes); tabs.TabPages.Add(about); Controls.Add(tabs);
+#if CRITICAL_RELEASE
+            Text="[xX_SoloH4x_Xx] SoloTrainer v0.6 - Critical release";
+            // Owner narrowed this release to the original working powers and fixes.
+            // Keep initialized draft panels for reset compatibility, outside this UI.
+            for(int i=tabs.TabPages.Count-1;i>=0;--i) {
+                var page=tabs.TabPages[i];
+                if(page!=main&&page!=combat&&page!=mobs&&page!=movement&&page!=loot&&page!=survival&&page!=about)
+                    tabs.TabPages.Remove(page);
+            }
+            fallThrough.Visible=hover.Visible=applyFlyOptions.Visible=flyVertical.Visible=false;
+            flySpeed.Visible=flyDeadZone.Visible=flyInertia.Visible=flightSettings.Visible=false;
+            autoHp.Visible=autoMp.Visible=applyAutoPotion.Visible=false;
+            notes.Text="Original powers + critical fixes.\r\n\r\nINJECT HAX attaches to your existing client.\r\nMob Vac, Item/Meso pickup, close-range FMA and HP/MP controls.\r\nMouse Fly: toggle F6, hold ALT in the playfield to steer.\r\nRapid Attack removes local recovery; attack with your normal key.\r\nALL OFF restores native controls and clears server powers.";
+#endif
             Check(main,vac,"[01] MOB VAC   // group monsters in front",12,11);
             Check(main,fma,"[02] FULL MAP ATTACK   // real close-range swing, <=100 mobs",12,44);
             var inputNote=new Label(); inputNote.Text="Attack normally: empty swings now expand across the map."; inputNote.SetBounds(18,86,580,24); inputNote.ForeColor=Color.Cyan; main.Controls.Add(inputNote);

@@ -43,6 +43,14 @@ assert any(r['kind']==100 and r['slot']==17 for r in records), 'Detach record lo
 secret=b'DIAGNOSTICS_SECRET_PAYLOAD_MUST_NOT_APPEAR'
 assert secret not in log.read_bytes() and secret not in fault.read_bytes()
 assert secret not in lifecycle.read_bytes()
+code_data=log.with_suffix('.code').read_bytes()
+assert len(code_data)==16*256
+for at in range(0,len(code_data),256):
+    magic,version,sequence,eip,allocation,protection,begin,length=struct.unpack_from('<8I',code_data,at)
+    assert magic==0x53444332 and version==1 and 1<=sequence<=24
+    assert 0<length<=224 and begin<=eip<begin+length
+    assert protection&(0x20|0x40|0x80) and allocation!=0
+assert secret not in code_data
 dump_files=[]
 for dump in set((build/'diagnostics').glob('*.dmp'))-prior_dumps:
     data = dump.read_bytes()
