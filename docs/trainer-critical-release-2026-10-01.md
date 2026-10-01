@@ -2,6 +2,8 @@
 
 **Latest installed fixes at02:00 PDT:** native D32E9A129D488BF93ED43D711D0CA55CA9BAF3C2EBFB2271B70C7AB06DD74144; critical EXE01689D861507F7AFBAC6BD2E235ECE797500FD3ED6D0FB07CE1275ED2CB76B39; sidecarACFD unchanged. The initial01:39 build below exposed another concrete hook bug and is superseded.
 
+**03:00 checkpoint:** the sidecar is now `AB783D8BC585DD606A33A9F8CD9F69E78EF8896249CA1B3C201D99AED97EC393`, installed at02:58:11 with pinned backup/rollback. Native D32 and critical EXE016 remain unchanged. It adds bounded first-C++ exception evidence; it is not a new gameplay patch or proof that all crashes are fixed.
+
 ## Owner scope
 
 The owner narrowed this project on October1 to the original small trainer, client crash repairs and critical features/fixes, then closeout as soon as possible. The original 70-control/social venue closeout is not claimed complete. Its source and backlog are preserved outside this release. No expansion ideas were implemented.
@@ -61,5 +63,17 @@ A read-only dump and a brief x86 main-thread context capture identify graphics d
 **02:27 PDT correction:** graphics initialization eventually returned in the same PID40832, with no diagnostic faults. The current dialog says the client was disconnected from the login server after the coordinated server restart. The prolonged white window is an observed startup delay, not a demonstrated permanent hang. GM repaired the separate bot-generation routing/null-map regression and deployed PID30717/JAR0a6a893458e9b8a53b37db1c09003b353f88c75ed483cd1b96656b5f5e49e9aa, config unchanged. The older Canvas gameplay fault remains unresolved. The client/error dialog is preserved; human authentication was not requested as an implementation gate.
 
 ## Local commit and upload
+
+## New pre-login report
+
+The owner reported a new failure before login. Fresh evidence identifies user-launched PID29728 at02:48:05 PDT, two E06D7363 C++ throw breadcrumbs at02:48:15 and native stage cleanup. Its faults/code files are empty, with no new AV or dump. The prior recorder retained only C++ event metadata except the exact native ZException5 type, so the actual new throw's HRESULT/type/context is unavailable. Parent relaunch processes18328/37400/21588 contain only DLL-detach exit records. Evidence was copied locally to parent `tmp/client-prelogin-20261001-0248/`. This is distinct from the earlier Canvas gameplay AV.
+
+V6 captures the FIRST general C++ throw with distinct kind14, full native exception parameters/context and one best-effort local dump; existing bounded ring, two-dump limit and exception propagation remain. It never dereferences an unknown exception object. The real C++ fixture throws/catches80004005 unchanged; its actual first dump retained the exact throw-object DWORD80004005. Existing loopback I/O, lifecycle, player guard,24 handled-fault propagation and saturation/retention tests passed. Build/test source is in the owned trainer worktree. Installation receipt/rollback is under parent `tmp/prelogin-sidecar-20261001T095811Z/`.
+
+One controlled launch after GM's stable PID31487/JAR87670cf9781751a73f825df2b94de92845c9d22fc966ea5d26eda32ddab7f2de release produced live PID41392 at02:58:16. The actual login screen rendered normally, with no C++/AV record; native Fly/Unlimited/Rapid all report ready. No authentication or gameplay was automated and no human testing gate was imposed. The earlier failure is not reproduced and its exact C++ cause is unconfirmed. Socket hooks were unavailable (`os_hooks=0`, update_thread error5), so recorded rx/tx zeros in these sessions do not establish absence of network traffic. Earlier handoff assertions based on those counters are superseded.
+
+GM retrieved exact server timing in parent `tmp/dom-release-timing-20261001.log`: stop requested02:46:51 for oldPID31131; a user login connection reached that shutting-down process at02:48:04.431; oldservice stopped02:48:14; newPID31487 started02:48:15; channel7575 listened02:48:20.399 and login8484 listened02:48:20.597. The failed client's02:48:05–15 throw window therefore overlaps an actual connection to the old service and its shutdown. This establishes connection-loss timing, not the uncaptured native exception type/HRESULT. The clean02:58 startup occurred after server readiness, with the critical native fixes retained.
+
+## Published source
 
 Critical native/EXE changes and evidence were committed on `dev/trainer-social` as `d8da899e9cdd271d4ff301e859ec9687b5279439`, with subsequent factual receipt corrections. Automatic approval review initially rejected the GitHub push because source-upload authorization was unclear. Reading direct human messages in progress-chat turns `01a0f448` and `01a0f447` established the owner's GitHub/fork and dev-to-test milestone authorization. Normal review accepted the retry; the source was pushed through `03b522e3` and draft [PR3](https://github.com/zkkng/QuietGrove/pull/3) was created into `test` and attached. The earlier upload question no longer needs an answer. No bypass, global security change, production promotion or merge occurred.

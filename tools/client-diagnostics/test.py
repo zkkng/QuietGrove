@@ -9,6 +9,20 @@ from read_lifecycle import read as read_lifecycle, SIZE as LIFECYCLE_SIZE
 
 root = Path(__file__).resolve().parent
 build = root/'build'
+cpp_before = set((build/'diagnostics').glob('*.log')) if (build/'diagnostics').exists() else set()
+cpp_run = subprocess.run([str(build/'NativeDiagnosticsHarness.exe'),'cpp'],cwd=build,capture_output=True,text=True,timeout=45)
+assert cpp_run.returncode == 0, (cpp_run.returncode,cpp_run.stdout,cpp_run.stderr)
+assert 'C++ startup HRESULT propagated unchanged' in cpp_run.stdout
+cpp_logs = set((build/'diagnostics').glob('*.log'))-cpp_before
+assert len(cpp_logs)==1, cpp_logs
+cpp_log=cpp_logs.pop()
+cpp_records=[r for r in read(cpp_log.with_suffix('.faults')) if r['kind']==14]
+assert len(cpp_records)==1, cpp_records
+cpp=cpp_records[0]
+assert cpp['exceptionCode']=='0xE06D7363' and cpp['eip']!='0x00000000'
+assert cpp['numberParameters']==3 and cpp['exceptionInformation'][0]==0x19930520
+assert all(cpp['exceptionInformation'][i]!=0 for i in (1,2))
+assert 'criticalCount=1' in cpp_log.read_text()
 before = set((build/'diagnostics').glob('*.log')) if (build/'diagnostics').exists() else set()
 prior_dumps = set((build/'diagnostics').glob('*.dmp')) if (build/'diagnostics').exists() else set()
 run = subprocess.run([str(build/'NativeDiagnosticsHarness.exe'),'saturation'],cwd=build,capture_output=True,text=True,timeout=45)
@@ -68,5 +82,6 @@ assert len(dump_files)==2, 'Expected two structurally valid minidumps from this 
 report=dict(passed=True,checks=['x86 DLL load and OS hooks','actual loopback payload roundtrip','Winsock error preservation','ring overflow accounting','24 handled faults propagate','latest 16 faults retained','reserved exit/detach slots survive saturation','no payload in logs/breadcrumbs','local MDMP file produced'],log=str(log),faultFile=str(fault),recordSize=RECORD_SIZE,dumps=dump_files,dllSha256=hashlib.sha256((build/'SoloClientDiagnostics.dll').read_bytes()).hexdigest(),stdout=run.stdout)
 (root/'test-result.json').write_text(json.dumps(report,indent=2))
 report['checks'] += ['five native lifecycle detours preserve arguments/effects/stack', '64 pre-null traces frozen through 1000 later records', 'reserved first-null stack survives saturation']
+report['checks'] += ['actual handled C++ HRESULT propagates unchanged', 'first C++ throw context and three native parameters retained with distinct kind14']
 (root/'test-result.json').write_text(json.dumps(report,indent=2))
 print(json.dumps(report,indent=2))
