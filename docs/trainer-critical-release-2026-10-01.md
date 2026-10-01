@@ -44,7 +44,13 @@ Two further critical bugs are fixed: rapid's expected prologue contained1C where
 
 GM content release was a new condition: PID29752, JAR7821b2eb2e468daa7fd6ba7cd9488a8a03545e68ee1632217d03249cbdaed92e, configb03341b0e2737178386f6b52e141d695bdfb391f4b22cbe2e26ccc5da0be899c. This included GM's requested boss waves plus content/venue migrations. It was superseded by the statistics fix at PID30151/JAR74ba6375, then the Henesys town-defense overlay at PID30369/JARbb68ad2e4bad26d3b255d7be31268ce0a6f5c9d260dfc5fa5df0ed8cc502acb9, with config unchanged. Native client changes were independent and the client was kept closed for those coordinated restarts. Human playthrough is not a source implementation gate; known defects and missing scope remain separate from optional live QA.
 
-## Source freeze
+## Final coordinated server readiness
+
+GM's final guarded release is ready: PID31131, JAR `9d3955f42a35f44a199b647db5865d9ed6620aef357b2e875bbc6db59041c048`, config `b03341b0e2737178386f6b52e141d695bdfb391f4b22cbe2e26ccc5da0be899c` unchanged, port7575 ready. Rollback backup: `/opt/solomapling/backups/hene-all-ambient-roles-20261001T093549Z`. Only `HenesysTownDefense.class` changed from the population-repair release. Six exact-JAR regressions passed; GM source commit `ebbeb028`.
+
+GM separately verified 73 real Henesys actors and one genuine Snail BOT kill in both the database and public counters before test cleanup. This is server gameplay/statistics evidence, not native trainer stability acceptance. Future combined builds must integrate the GM worktree service/BotSM/exposure/social-availability/population-routing commits and the world-statistics33-hook source; the preserved archive is not the complete release source.
+
+The native owner rechecked installed DLL D32E9A12 and critical EXE01689D86 against their full SHA256 pins after final readiness. The current disconnected client is preserved. No further GM restart is planned. The older Canvas gameplay fault remains a concrete unresolved item.
 
 ## Single launch at 02:18 PDT
 
