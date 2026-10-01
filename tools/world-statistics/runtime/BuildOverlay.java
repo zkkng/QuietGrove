@@ -17,7 +17,7 @@ public final class BuildOverlay {
    for(var entry:Collections.list(jar.entries())){
     String path=entry.getName();if(!path.endsWith(".class") || path.contains("$"))continue;
     String name=path.substring(0,path.length()-6).replace('/','.');
-    if(!name.startsWith("net.server.channel.handlers.") && !List.of("client.processor.action.PetAutopotProcessor","soloMapling.ArtificialPlayer.CompanionSystem.CompanionCombat","server.StatEffect","client.inventory.Inventory","client.inventory.manipulator.InventoryManipulator","client.inventory.Item","client.command.CommandsExecutor","server.quest.Quest","server.life.Monster","client.Character","scripting.event.EventInstanceManager","scripting.AbstractPlayerInteraction","database.DatabaseMigrations").contains(name))continue;
+    if(!name.startsWith("net.server.channel.handlers.") && !List.of("client.processor.action.PetAutopotProcessor","soloMapling.ArtificialPlayer.CompanionSystem.CompanionCombat","server.StatEffect","client.inventory.Inventory","client.inventory.manipulator.InventoryManipulator","client.inventory.Item","client.command.CommandsExecutor","server.quest.Quest","server.life.Monster","server.maps.MapleMap","client.Character","scripting.event.EventInstanceManager","scripting.AbstractPlayerInteraction","database.DatabaseMigrations").contains(name))continue;
     var type=pool.describe(name).resolve();var builder=new ByteBuddy().redefine(type,locator);boolean changed=false;
     if(name.startsWith("net.server.channel.handlers.") && (type.getSimpleName().startsWith("Use") || List.of("ScrollHandler","SkillBookHandler","ItemRewardHandler","RangedAttackHandler","MakerSkillHandler").contains(type.getSimpleName()))){builder=builder.visit(Advice.to(HookAdvice.Packet.class).on(named("handlePacket")));changed=true;}
     if(name.equals("client.processor.action.PetAutopotProcessor")){builder=builder.visit(Advice.to(HookAdvice.PetScope.class).on(named("runAutopotAction")));changed=true;}
@@ -28,7 +28,8 @@ public final class BuildOverlay {
     if(name.equals("client.inventory.Item")){builder=builder.visit(Advice.to(HookAdvice.Quantity.class).on(named("setQuantity")));changed=true;}
     if(name.equals("client.command.CommandsExecutor")){builder=builder.visit(Advice.to(HookAdvice.Admin.class).on(named("handle")));changed=true;}
     if(name.equals("server.quest.Quest")){builder=builder.visit(Advice.to(HookAdvice.QuestComplete.class).on(named("forceComplete"))).visit(Advice.to(HookAdvice.ActorScope.class).on(namedOneOf("start","complete").and(takesArgument(0,named("client.Character")))));changed=true;}
-    if(name.equals("server.life.Monster")){builder=builder.defineField("worldStatsRecorded",boolean.class,Visibility.PRIVATE).visit(Advice.to(HookAdvice.Mob.class).on(named("killBy")));changed=true;}
+    if(name.equals("server.life.Monster")){builder=builder.visit(Advice.to(HookAdvice.Mob.class).on(named("disposeMapObject")));changed=true;}
+    if(name.equals("server.maps.MapleMap")){builder=builder.visit(Advice.to(HookAdvice.MapKill.class).on(named("killMonster").and(takesArguments(5))));changed=true;}
     if(name.equals("client.Character")){builder=builder.visit(Advice.to(HookAdvice.Death.class).on(named("hpChangeAction")));changed=true;}
     if(name.equals("scripting.event.EventInstanceManager")){builder=builder.visit(Advice.to(HookAdvice.Pq.class).on(named("setEventCleared")));changed=true;}
     if(name.equals("scripting.AbstractPlayerInteraction")){builder=builder.visit(Advice.to(HookAdvice.ScriptSpend.class).on(named("gainItem").and(takesArguments(6)))).visit(Advice.to(HookAdvice.Jq.class).on(named("warp").and(takesArguments(2)).and(takesArgument(1,int.class))));changed=true;}

@@ -55,8 +55,7 @@ public final class WorldStatistics {
                 2,Math.max(0,entity),Math.max(0,region),reason,method,System.currentTimeMillis(),amount);
     }
     public static void monster(Object obj,Object killer){
-        Monster mob=(Monster)obj;
-        if(killer instanceof Character chr && mob.getHp()==0)offer(2,chr,mob.getId(),chr.getMapId(),0,0,1);
+        // Compatibility with previously installed killBy advice. Disposal owns death capture now.
     }
     public static int questBefore(Object obj,Object player){
         return ((Character)player).getQuest((Quest)obj).getStatus()==QuestStatus.Status.COMPLETED?1:0;

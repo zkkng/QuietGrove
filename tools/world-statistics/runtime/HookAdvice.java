@@ -1,6 +1,7 @@
 package statistics.build;
 import net.bytebuddy.asm.Advice;
 import server.statistics.WorldStatistics;
+import server.statistics.MonsterDeathTracking;
 import client.inventory.Item;
 public final class HookAdvice {
  public static class Packet {
@@ -40,7 +41,12 @@ public final class HookAdvice {
   @Advice.OnMethodExit(onThrowable=Throwable.class,suppress=Throwable.class) static void exit(@Advice.This Object quest,@Advice.Argument(0) Object chr,@Advice.Enter int before){WorldStatistics.questAfter(quest,chr,before);}
  }
  public static class Mob {
-  @Advice.OnMethodEnter(suppress=Throwable.class) static void enter(@Advice.This Object mob,@Advice.Argument(0) Object killer,@Advice.FieldValue(value="worldStatsRecorded",readOnly=false) boolean recorded){if(!recorded && killer!=null){recorded=true;WorldStatistics.monster(mob,killer);}}
+  @Advice.OnMethodEnter(suppress=Throwable.class) static MonsterDeathTracking.Scope enter(@Advice.This Object mob){return MonsterDeathTracking.beforeDispose(mob);}
+  @Advice.OnMethodExit(suppress=Throwable.class) static void exit(@Advice.This Object mob,@Advice.Enter MonsterDeathTracking.Scope scope){MonsterDeathTracking.afterDispose(mob,scope);}
+ }
+ public static class MapKill {
+  @Advice.OnMethodEnter(suppress=Throwable.class) static MonsterDeathTracking.Scope enter(@Advice.This Object map,@Advice.Argument(0) Object mob,@Advice.Argument(1) Object killer){return MonsterDeathTracking.enter(map,mob,killer);}
+  @Advice.OnMethodExit(onThrowable=Throwable.class,suppress=Throwable.class) static void exit(@Advice.Enter MonsterDeathTracking.Scope scope){if(scope!=null)MonsterDeathTracking.exit(scope);}
  }
  public static class Death {
   @Advice.OnMethodEnter(suppress=Throwable.class) static void enter(@Advice.This Object chr,@Advice.Argument(0) int oldHp){WorldStatistics.death(chr,oldHp);}

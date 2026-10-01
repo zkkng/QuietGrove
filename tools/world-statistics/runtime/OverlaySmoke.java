@@ -31,6 +31,7 @@ public final class OverlaySmoke {
   WorldStatistics.RECORDER.drain((m,w,p,a,e,r,why,how,t,n)->removed.add(n),100);
   if(!removed.equals(List.of(3L)))throw new AssertionError("Actual removal/clamp counted incorrectly: "+removed);
   ctx.code=0;ctx.actor=null;
+  MonsterDeathSmoke.main(new String[0]);
   System.out.println("OVERLAY_SMOKE_PASS verified-types="+hooks.size()+" quantity-hook/context/admin/actual-removal");
  }
 }
