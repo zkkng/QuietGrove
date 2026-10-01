@@ -41,6 +41,7 @@ public final class IncidentService {
         final int spawnBudget;
         final int trialActiveLimit;
         final Hosted hosted;
+        final BossWaveBudget waveBudget;
         final long spawnInterval;
         final Map<Monster,Boolean> accepted=new IdentityHashMap<>();
         int remainingInitial;
@@ -54,9 +55,10 @@ public final class IncidentService {
             this.generation=generation;this.channel=channel;this.map=map;this.encounter=encounter;this.profile=profile;
             this.trialActiveLimit=trialActiveLimit;
             this.hosted=hosted;this.remainingInitial=count;this.spawnPosition=new Point(spawnPosition);
+            waveBudget=hosted!=null && encounter.key().equals("wave-bosses") ? new BossWaveBudget(started) : null;
             this.spawnInterval=spawnInterval;
             expires=started+2*60*60_000L;
-            spawnBudget=Math.addExact(Math.multiplyExact(count,encounter.parts()),Integer.getInteger("gm.events.incidentDescendantBudget",128));
+            spawnBudget=Math.addExact(Math.multiplyExact(count+(waveBudget==null?0:400),encounter.parts()),Integer.getInteger("gm.events.incidentDescendantBudget",128));
             awareness=new IncidentAwareness(generation,candidates);
         }
         String mapOwner() {return hosted==null?id:hosted.leaseOwner();}
@@ -70,6 +72,7 @@ public final class IncidentService {
     private IncidentService() {}
 
     private static Encounter resolve(String key) {
+        if(key.equals("wave-bosses")) return new Encounter(key,Set.copyOf(BossWaveBudget.POOL),Set.copyOf(BossWaveBudget.POOL),6130101,1);
         if(key.equals("snail")) return new Encounter(key,Set.of(100100),Set.of(100100),100100,1);
         if(key.equals("crimson-balrog")) return new Encounter(key,Set.of(8150000),Set.of(8150000),8150000,1);
         var definition=BossRegistry.get(key);
@@ -94,7 +97,7 @@ public final class IncidentService {
         if(lease==null || !lease.committed() || lease.role()!=CompanionTaskService.EventRole.HOST
                 || !lease.eventId().equals(owner) || !WaveInvasionService.getInstance().ownsHost(owner,host)
                 || !EventMapLeases.owned(host.getMap(),owner)) return "Hosted incident authority is stale.";
-        return prepare(host,key,count,true,activeLimit,new Hosted(owner,key.equals("snail")?2000:15_000,completed),position);
+        return prepare(host,key,count,true,activeLimit,new Hosted(owner,key.equals("snail")?2000:key.equals("wave-bosses")?1000:15_000,completed),position);
     }
     private String prepare(Character host,String key,int count,boolean announced,int trialActiveLimit,Hosted hosted,Point origin) {
         if(trialActiveLimit<0) return "Trial active limit must be positive.";
@@ -113,7 +116,8 @@ public final class IncidentService {
             return "Full boss placement requires its reviewed arena; a town placement profile has not been verified.";
         Monster template=LifeFactory.getMonster(encounter.root());
         if(template==null || template.getMaxHp()<1 || template.getStats().isFriendly()) return "Incompatible/missing monster template.";
-        if(count>(template.getStats().isBoss()?3:30)) return "Managed incidents allow at most3 bosses or30 ordinary mobs.";
+        int bossLimit=hosted!=null && key.equals("wave-bosses")?BossWaveBudget.LIVE_LIMIT:3;
+        if(count>(template.getStats().isBoss()?bossLimit:30)) return "Managed incidents allow at most"+bossLimit+" bosses or30 ordinary mobs.";
         List<IncidentAwareness.Candidate> candidates=new ArrayList<>();
         for(BotSM bot:CharacterStorage.getAllBots().values()) {
             Character actor=bot.getChr();
@@ -140,7 +144,7 @@ public final class IncidentService {
             if(encounter.key().equals("zakum")) {
                 map.spawnZakumOnGroundBelow(position);
             } else if(encounter.key().equals("horntail")) map.spawnHorntailOnGroundBelow(position);
-            else map.spawnMonsterOnGroundBelow(LifeFactory.getMonster(encounter.root()),position);
+            else map.spawnMonsterOnGroundBelow(LifeFactory.getMonster(rootTemplate(incident)),position);
             incident.remainingInitial--;
             incident.nextSpawnAt=System.currentTimeMillis()+incident.spawnInterval;
         } catch(RuntimeException failure) {end(incident,false,"Incident preparation failed");return "Incident preparation failed: "+failure.getMessage();}
@@ -175,7 +179,7 @@ public final class IncidentService {
             Set<Object> living=new HashSet<>();
             for(var accepted:incident.accepted.entrySet()) if(accepted.getValue() && accepted.getKey().isAlive())
                 living.add(bossSlot(incident,accepted.getKey()));
-            if(!living.contains(bossSlot(incident,monster)) && living.size()>=3) return false;
+            if(!living.contains(bossSlot(incident,monster)) && living.size()>=(incident.waveBudget==null?3:BossWaveBudget.LIVE_LIMIT)) return false;
         } else if(incident.accepted.entrySet().stream().filter(e->!e.getValue() && e.getKey().isAlive()).count()>=30) return false;
         incident.accepted.put(monster,boss);
         monster.setIncidentOwner(incident.id);
@@ -234,6 +238,9 @@ public final class IncidentService {
             end(incident,false,"Incident failed");
         }
     }
+    private static int rootTemplate(Incident incident) {
+        return incident.waveBudget==null?incident.encounter.root():BossWaveBudget.monster(java.util.concurrent.ThreadLocalRandom.current());
+    }
     private void tick(Incident incident) {
         long now=System.currentTimeMillis();
         if(incident.closed || !incident.prepared) return;
@@ -241,11 +248,17 @@ public final class IncidentService {
         if(incident.remainingInitial==0 && !incident.roots.isEmpty() && incident.completeRoots.containsAll(incident.roots)) {end(incident,true,"The actual encounter was defeated");return;}
         EventGovernor.Mode mode=incident.governor.update(incident.telemetry.sample(now));
         if(mode==EventGovernor.Mode.STOP) {end(incident,false,"Sustained incident overload");return;}
+        if(incident.waveBudget!=null) {
+            int living;
+            synchronized(this) {living=(int)incident.accepted.entrySet().stream().filter(e->e.getValue() && e.getKey().isAlive()).count();}
+            int added=incident.waveBudget.replenish(now,living,incident.remainingInitial,java.util.concurrent.ThreadLocalRandom.current());
+            if(added>0) {incident.remainingInitial+=added;log.info("Incident {} three-minute top-up living={} added={} queued={}",incident.id,living,added,incident.remainingInitial);}
+        }
         if(incident.remainingInitial>0 && now>=incident.nextSpawnAt && incident.governor.arrivals()) {
             int before=incident.spawned;
             try {
                 SPAWNING.set(incident);
-                incident.map.spawnMonsterOnGroundBelow(LifeFactory.getMonster(incident.encounter.root()),incident.spawnPosition);
+                incident.map.spawnMonsterOnGroundBelow(LifeFactory.getMonster(rootTemplate(incident)),incident.spawnPosition);
             } finally {SPAWNING.remove();}
             if(incident.spawned>before) {
                 for(long root:incident.roots) BossMonsterController.addIncidentRoot(incident.id,incident.controllerGeneration,root);
@@ -472,7 +485,7 @@ public final class IncidentService {
                 +"; finite population="+i.awareness.population()+", committed="+i.actors.size()+", spawned="+i.spawned+"/"+i.spawnBudget
                 +", scheduled remaining="+i.remainingInitial+", living boss slots="+i.accepted.entrySet().stream()
                     .filter(e->e.getValue() && e.getKey().isAlive()).map(e->bossSlot(i,e.getKey())).distinct().count()
-                +"/3, living ordinary="+i.accepted.entrySet().stream().filter(e->!e.getValue() && e.getKey().isAlive()).count()+"/30"
+                +"/"+(i.waveBudget==null?3:BossWaveBudget.LIVE_LIMIT)+", living ordinary="+i.accepted.entrySet().stream().filter(e->!e.getValue() && e.getKey().isAlive()).count()+"/30"
                 +", actual final encounters="+i.completeRoots.size()+"/"+i.roots.size()
                 +", travel buckets <5/<15/<30/<60/>=60s="+arrivalSummary(i.arrivalBuckets)
                 +", responder deaths="+i.casualties.get()+", bystander deaths="+i.bystanderDeaths.get()+", retreats="+i.retreats.get()).toList();

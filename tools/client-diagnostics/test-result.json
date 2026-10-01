@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "checks": [
+    "x86 DLL load and OS hooks",
+    "actual loopback payload roundtrip",
+    "Winsock error preservation",
+    "ring overflow accounting",
+    "24 handled faults propagate",
+    "latest 16 faults retained",
+    "reserved exit/detach slots survive saturation",
+    "no payload in logs/breadcrumbs",
+    "local MDMP file produced",
+    "five native lifecycle detours preserve arguments/effects/stack",
+    "64 pre-null traces frozen through 1000 later records",
+    "reserved first-null stack survives saturation"
+  ],
+  "log": "G:\\Maplestory v83 server dev\\SoloMapling-v83\\tools\\client-diagnostics\\build\\diagnostics\\session-20261001T052706Z-pid36892.log",
+  "faultFile": "G:\\Maplestory v83 server dev\\SoloMapling-v83\\tools\\client-diagnostics\\build\\diagnostics\\session-20261001T052706Z-pid36892.faults",
+  "recordSize": 4416,
+  "dumps": [
+    {
+      "name": "capture-20261001T052706Z-p36892-1.dmp",
+      "bytes": 415591,
+      "streams": [
+        3,
+        17,
+        4,
+        19,
+        5,
+        16,
+        7,
+        15,
+        12,
+        21,
+        22,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "capture-20261001T052706Z-p36892-2.dmp",
+      "bytes": 415591,
+      "streams": [
+        3,
+        17,
+        4,
+        19,
+        5,
+        16,
+        7,
+        15,
+        12,
+        21,
+        22,
+        11,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "dllSha256": "0841a14eec84eec1a5ef8810ad3113002ae62a49ca4792edfa302d926ef2c652",
+  "stdout": "native error branch: original ignores positive errors; corrected branch handles positive/negative errors and passes zero\nlifecycle: five real x86 detours preserve receiver, cdecl arguments, effects and stack across 500 calls\nplayer-pool guard: 10000 null calls safely skipped; 10000 valid calls forwarded; x86 stack preserved\nsend last-error observed 0 (provider may change it)\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsynthetic fault propagated to harness handler\nsocket payload preserved; error semantics preserved; harness complete\n"
+}

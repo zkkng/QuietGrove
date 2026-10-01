@@ -19,7 +19,9 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class HostedIncidentTest {
-    @Test void delayedBossRootsAndDescendantsRespectCapsAndCancellationCannotSpawnLate() throws Exception {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans={false,true})
+    void delayedBossRootsAndDescendantsRespectCapsAndCancellationCannotSpawnLate(boolean mixed) throws Exception {
         var service=IncidentService.getInstance();var channel=mock(Channel.class);var map=mock(MapleMap.class);
         var maps=mock(MapManager.class);var host=mock(Character.class);var client=mock(Client.class);var portal=mock(Portal.class);
         when(host.getId()).thenReturn(998321);when(host.getMap()).thenReturn(map);when(host.getWorld()).thenReturn(933);
@@ -51,8 +53,9 @@ class HostedIncidentTest {
             life.when(()->LifeFactory.getMonster(anyInt())).thenAnswer(i->{MonsterStats stats=new MonsterStats();stats.setHp(100);stats.setBoss(true);return new Monster(i.getArgument(0),stats);});
             storage.when(CharacterStorage::getAllBots).thenReturn(Map.of());timer.when(TimerManager::getInstance).thenReturn(timers);
             waves.when(WaveInvasionService::getInstance).thenReturn(waveService);
-            assertTrue(service.createHosted(host,owner,"mushmom",4,80,new Point(),completion).contains("at most3"));
-            assertTrue(service.createHosted(host,owner,"mushmom",3,80,new Point(),completion).startsWith("Created "));
+            int limit=mixed?10:3;String key=mixed?"wave-bosses":"mushmom";
+            assertTrue(service.createHosted(host,owner,key,limit+1,80,new Point(),completion).contains("at most"+limit));
+            assertTrue(service.createHosted(host,owner,key,limit,80,new Point(),completion).startsWith("Created "));
             bots.when(()->soloMapling.ArtificialPlayer.BotHelpers.isBot(host)).thenReturn(true);
             assertEquals(0,IncidentService.exposureGeneration(host));
             var bystander=mock(Character.class);when(bystander.getId()).thenReturn(998322);when(bystander.getMap()).thenReturn(map);
@@ -75,10 +78,23 @@ class HostedIncidentTest {
             nextSpawn.setLong(incident,0);pump.invoke(service);assertEquals(2,monsters.size());
             pump.invoke(service);assertEquals(2,monsters.size());
             nextSpawn.setLong(incident,0);pump.invoke(service);assertEquals(3,monsters.size());
+            for(int n=3;n<limit;n++) {nextSpawn.setLong(incident,0);pump.invoke(service);assertEquals(n+1,monsters.size());}
             Monster parent=monsters.getFirst();
             MonsterStats bossStats=new MonsterStats();bossStats.setHp(100);bossStats.setBoss(true);
             var extraBoss=new Monster(8150000,bossStats);extraBoss.inheritEncounter(parent);
             assertFalse(service.allowSpawn(map,extraBoss)); // Same inherited root cannot hide a fourth field boss.
+            if(mixed) {
+                for(Monster dead:List.copyOf(monsters.subList(0,4))) {dead.setHpZero();monsters.remove(dead);service.monsterRemoved(dead,true);}
+                var budgetField=incident.getClass().getDeclaredField("waveBudget");budgetField.setAccessible(true);
+                var budget=(BossWaveBudget)budgetField.get(incident);
+                var due=BossWaveBudget.class.getDeclaredField("due");due.setAccessible(true);due.setLong(budget,0);
+                nextSpawn.setLong(incident,0);pump.invoke(service);
+                var queued=incident.getClass().getDeclaredField("remainingInitial");queued.setAccessible(true);
+                int total=monsters.size()+queued.getInt(incident);
+                assertTrue(total>=7 && total<=10);assertNull(completed.get());
+                while(queued.getInt(incident)>0) {nextSpawn.setLong(incident,0);pump.invoke(service);}
+                assertEquals(total,monsters.size());assertTrue(monsters.size()<=10);
+            }
             for(int n=0;n<30;n++) {
                 MonsterStats stats=new MonsterStats();stats.setHp(10);var child=new Monster(100100,stats);child.inheritEncounter(parent);
                 assertTrue(service.allowSpawn(map,child));child.setMap(map);child.setObjectId(200+n);monsters.add(child);service.monsterSpawned(child);

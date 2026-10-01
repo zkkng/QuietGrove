@@ -38,6 +38,7 @@ src/main/java/soloMapling/Documents/Continuation Roadmap.md
 
 # Quiet Grove local releases, private evidence and generated trainer files
 /release/
+/tools/world-statistics/runtime/resources/
 /tools/solo-trainer/bin/
 /tools/solo-trainer/candidate*/
 /tools/world-statistics/checkpoint-*/

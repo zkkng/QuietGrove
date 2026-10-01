@@ -73,4 +73,22 @@ class StatisticsWorkerTest {
             assertThrows(IllegalStateException.class,worker::replay); assertFalse(worker.flushOne());
         }
     }
+
+    @Test void shutdownJournalsPendingAndNewDeltasWithoutDatabaseAndReplaysOnce() throws Exception {
+        var recorder = new BoundedStatisticsRecorder(8);
+        var sink = new Sink(); sink.failBefore=true;
+        UUID producer=UUID.randomUUID(); Path path=directory.resolve("shutdown");
+        try(var journal=new StatisticsJournal(path,8192)) {
+            var worker=new StatisticsWorker(recorder,new StatisticsAccumulator(100),journal,sink,"test",producer);
+            offer(recorder); worker.drain(10); assertThrows(IOException.class,worker::flushOne);
+            offer(recorder); worker.drain(10); worker.persistRemainingForShutdown();
+            List<Long> frames=new ArrayList<>();journal.replay(b->frames.add(b.sequence()));
+            assertEquals(List.of(1L,2L),frames);
+        }
+        try(var journal=new StatisticsJournal(path,8192)) {
+            var worker=new StatisticsWorker(new BoundedStatisticsRecorder(8),new StatisticsAccumulator(100),journal,sink,"test",producer);
+            worker.replay();assertEquals(BigInteger.valueOf(6),sink.total());
+            worker.replay();assertEquals(BigInteger.valueOf(6),sink.total());
+        }
+    }
 }

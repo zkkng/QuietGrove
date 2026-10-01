@@ -7,17 +7,16 @@ class WaveSequenceTest {
     @Test void introAndIntermissionDoNotAdvancePastLivingBosses() {
         var sequence=new WaveSequence(WaveSequence.bosses(),1000);
         assertNull(sequence.next(20_999));
-        var first=sequence.next(21_000);assertEquals(3,first.wave().count());
+        var first=sequence.next(21_000);assertTrue(first.wave().count()>=5 && first.wave().count()<=10);
         assertNull(sequence.next(3_000_000)); // A clock cannot kill a surviving wave.
         assertTrue(sequence.complete(first,true,3_000_000));
         assertFalse(sequence.complete(first,true,3_000_001));
-        assertNull(sequence.next(3_029_999));
-        var second=sequence.next(3_030_000);assertEquals("jr-balrog",second.wave().encounter());
+        var second=sequence.next(3_000_000);assertEquals("wave-bosses",second.wave().encounter());
         assertTrue(sequence.complete(second,false,3_040_000));assertTrue(sequence.closed());
         assertNull(sequence.next(Long.MAX_VALUE));
     }
     @Test void capValidationAndStaleCompletionAfterCancel() {
-        assertThrows(IllegalArgumentException.class,()->new WaveSequence.Wave("mushmom",4,true));
+        assertThrows(IllegalArgumentException.class,()->new WaveSequence.Wave("mushmom",11,true));
         assertThrows(IllegalArgumentException.class,()->new WaveSequence.Wave("snail",31,false));
         assertDoesNotThrow(()->new WaveSequence.Wave("snail",30,false));
         var sequence=new WaveSequence(WaveSequence.bosses(),0);var first=sequence.next(20_000);

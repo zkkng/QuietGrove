@@ -19,7 +19,7 @@ $jars = @($jarNames | ForEach-Object {
     if (-not (Test-Path -LiteralPath $path)) { throw ('Local test dependency missing: '+$path) }
     $path
 })
-$classPath = $jars -join [System.IO.Path]::PathSeparator
+$classPath = ($jars -join [System.IO.Path]::PathSeparator) + [System.IO.Path]::PathSeparator + (Join-Path $PSScriptRoot 'runtime\base\Server.jar')
 $sources = @(
     Get-ChildItem (Join-Path $repoRoot 'src\main\java\server\statistics') -Filter '*.java'
     Get-ChildItem (Join-Path $repoRoot 'src\test\java\server\statistics') -Filter '*.java'
