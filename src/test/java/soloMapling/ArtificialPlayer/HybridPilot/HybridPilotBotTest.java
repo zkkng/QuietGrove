@@ -1,0 +1,183 @@
+package soloMapling.ArtificialPlayer.HybridPilot;
+
+import client.BotClient;
+import client.Character;
+import client.Client;
+import client.Disease;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import server.maps.MapleMap;
+import soloMapling.ArtificialPlayer.BotCommandsPack.BotAttack;
+import soloMapling.ArtificialPlayer.BotMessagingSystem.CharacterStorage;
+import soloMapling.ArtificialPlayer.BotSM;
+import soloMapling.ArtificialPlayer.BotTypeManager;
+import soloMapling.server.BotTickService;
+
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+class HybridPilotBotTest {
+    final Character body = mock(Character.class), human = mock(Character.class);
+    final MapleMap map = mock(MapleMap.class);
+    final HybridPilotBot.Effects effects = mock(HybridPilotBot.Effects.class);
+    final AtomicLong now = new AtomicLong(1000);
+    HybridPilotBot actor;
+
+    @BeforeEach void setup() {
+        when(body.getId()).thenReturn(29001);
+        when(body.getName()).thenReturn("Hybrid1");
+        when(body.getMap()).thenReturn(map);
+        when(body.isAlive()).thenReturn(true);
+        when(body.getHp()).thenReturn(100);
+        when(body.getCurrentMaxHp()).thenReturn(100);
+        when(human.getMap()).thenReturn(map);
+        when(human.getClient()).thenReturn(mock(Client.class));
+        when(human.getName()).thenReturn("Tester");
+        when(map.getCharacters()).thenReturn(List.of(human));
+        try (var attacks = mockStatic(BotAttack.class)) { actor = new HybridPilotBot(body, now::get, effects); }
+        CharacterStorage.addActiveBot(body.getId(), actor);
+        actor.setRunning(true);
+    }
+    @AfterEach void cleanup() {
+        actor.stopScheduledTask();
+        CharacterStorage.removeActiveBot(body.getId());
+    }
+
+    @Test void sameCharacterSwitchesSocialCombatSocialWithoutTypeReplacement() {
+        when(effects.attack(body, map)).thenReturn(false, true, false);
+        actor.updateState(); assertEquals(HybridPilotBot.Mode.SOCIAL, actor.mode());
+        now.addAndGet(500); actor.updateState(); assertEquals(HybridPilotBot.Mode.COMBAT, actor.mode());
+        now.addAndGet(1500); actor.updateState(); assertEquals(HybridPilotBot.Mode.SOCIAL, actor.mode());
+        assertSame(body, actor.getChr()); assertSame(actor, CharacterStorage.getBotById(body.getId()));
+        verify(body, never()).updateHp(anyInt());
+    }
+    @Test void emptyMapDoesNotAttackHurtOrTalkAndWakeDoesNotCatchUp() {
+        when(map.getCharacters()).thenReturn(List.of());
+        actor.updateState(); now.addAndGet(60_000); actor.updateState();
+        assertEquals(HybridPilotBot.Mode.DORMANT, actor.mode()); verifyNoInteractions(effects);
+        when(map.getCharacters()).thenReturn(List.of(human)); actor.updateState();
+        verify(effects, times(1)).attack(body, map); verify(effects, times(1)).contact(body, map);
+    }
+    @Test void sameMapIdInAnotherInstanceDoesNotWakeActor() {
+        MapleMap other = mock(MapleMap.class);
+        when(other.getId()).thenReturn(100000000); when(map.getId()).thenReturn(100000000);
+        when(human.getMap()).thenReturn(other);
+        actor.updateState(); verifyNoInteractions(effects);
+        assertFalse(HybridPilotBot.observed(map));
+    }
+    @Test void headlessCharactersAreNotObserversRegardlessOfId() {
+        when(human.getClient()).thenReturn(mock(BotClient.class));
+        when(human.getId()).thenReturn(1);
+        actor.updateState(); verifyNoInteractions(effects);
+    }
+    @Test void realClientAboveLegacyIdThresholdStillObserves() {
+        when(human.getId()).thenReturn(99999);
+        assertTrue(HybridPilotBot.observed(map));
+    }
+    @Test void contactDeathPreventsAttackAndSpeechInSameTick() {
+        assertTrue(actor.chat(human, "Hybrid1 hello"));
+        when(effects.contact(body, map)).thenAnswer(inv -> { when(body.isAlive()).thenReturn(false); return true; });
+        actor.updateState();
+        verify(effects, never()).attack(any(), any()); verify(effects, never()).speak(any(), any());
+        assertEquals(HybridPilotBot.Mode.DEAD, actor.mode());
+    }
+    @Test void deadActorNeverAutoRevivesOrActs() {
+        when(body.isAlive()).thenReturn(false); actor.updateState();
+        now.addAndGet(30000); actor.updateState(); verifyNoInteractions(effects);
+        verify(body, never()).updateHp(anyInt());
+    }
+    @Test void socialActorStillTakesContactDamage() {
+        actor.updateState(); verify(effects).contact(body, map);
+        assertEquals(HybridPilotBot.Mode.SOCIAL, actor.mode());
+    }
+    @Test void attackAndDamageAreRateLimitedIndependently() {
+        when(effects.attack(body, map)).thenReturn(true); when(effects.contact(body, map)).thenReturn(true);
+        for (int i = 0; i < 3; i++) { actor.updateState(); now.addAndGet(500); }
+        verify(effects, times(1)).attack(body, map); verify(effects, times(1)).contact(body, map);
+        actor.updateState(); verify(effects, times(2)).attack(body, map); verify(effects, times(2)).contact(body, map);
+    }
+    @Test void stunnedActorStillTakesDamageButCannotAttack() {
+        when(body.hasDisease(Disease.STUN)).thenReturn(true); actor.updateState();
+        verify(effects).contact(body, map); verify(effects, never()).attack(any(), any());
+        assertEquals(HybridPilotBot.Mode.BLOCKED, actor.mode());
+    }
+    @Test void chatDuringCombatDoesNotReplaceBrainOrPreventFighting() {
+        when(effects.attack(body, map)).thenReturn(true);
+        assertTrue(actor.chat(human, "Hybrid1: hello")); actor.updateState();
+        verify(effects).attack(body, map); verify(effects).speak(eq(body), contains("Tester"));
+        assertEquals(HybridPilotBot.Mode.COMBAT, actor.mode());
+    }
+    @Test void chatFloodIsOneReplyWithCooldown() {
+        for (int i = 0; i < 1000; i++) assertTrue(actor.chat(human, "Hybrid1 hello"));
+        actor.updateState();
+        for (int i = 0; i < 1000; i++) actor.chat(human, "Hybrid1 hello");
+        now.addAndGet(500); actor.updateState();
+        verify(effects, times(1)).speak(any(), any());
+    }
+    @Test void expiredOrDepartedSenderDoesNotReceiveQueuedSpeech() {
+        actor.chat(human, "Hybrid1 hello"); now.addAndGet(3000); actor.updateState();
+        verify(effects, never()).speak(any(), any());
+        actor.chat(human, "Hybrid1 hello"); when(human.getMap()).thenReturn(mock(MapleMap.class));
+        actor.updateState(); verify(effects, never()).speak(any(), any());
+    }
+    @Test void sleepDiscardsSpeechEvenIfSenderReturnsImmediately() {
+        actor.chat(human, "Hybrid1 hello"); when(map.getCharacters()).thenReturn(List.of()); actor.updateState();
+        when(map.getCharacters()).thenReturn(List.of(human)); actor.updateState();
+        verify(effects, never()).speak(any(), any());
+    }
+    @Test void addressedTradeGetsHonestRefusalAndNamesRequireBoundary() {
+        assertFalse(actor.chat(human, "Hybrid12 sell")); assertFalse(actor.chat(human, "hello"));
+        assertTrue(actor.chat(human, "hybrid1 sell")); actor.updateState();
+        verify(effects).speak(eq(body), contains("Trading isn't part"));
+    }
+    @Test void stopIsIdempotentAndLateTicksAndChatCannotAct() {
+        actor.stopScheduledTask(); actor.stopScheduledTask(); actor.updateState();
+        actor.setRunning(true); actor.startScheduledTask(); actor.updateState();
+        assertFalse(actor.chat(human, "Hybrid1 hello")); verifyNoInteractions(effects);
+        assertFalse(BotTickService.isRegistered(body.getId()));
+    }
+    @Test void failureStopsInsteadOfRetryingForever() {
+        when(effects.contact(body, map)).thenThrow(new IllegalStateException("injected"));
+        actor.updateState(); actor.updateState();
+        verify(effects, times(1)).contact(body, map); verify(effects, never()).attack(any(), any());
+        assertEquals(HybridPilotBot.Mode.FAULTED, actor.mode());
+        assertTrue(actor.status().contains("IllegalStateException"));
+    }
+    @Test void lifetimeExpiresEvenOnEmptyMapAndRemovalIsIdempotent() {
+        when(map.getCharacters()).thenReturn(List.of()); now.addAndGet(HybridPilotBot.LIFETIME_MS);
+        actor.updateState(); actor.remove(); actor.updateState();
+        verify(effects, times(1)).remove(body); verify(effects, never()).attack(any(), any());
+        assertTrue(actor.removed());
+    }
+    @Test void failedRemovalRemainsRetryableButNoFurtherGameplayRuns() {
+        doThrow(new IllegalStateException("cleanup")).doNothing().when(effects).remove(body);
+        assertThrows(IllegalStateException.class, actor::remove);
+        actor.updateState(); verify(effects, never()).attack(any(), any()); assertFalse(actor.removed());
+        actor.remove(); assertTrue(actor.removed());
+    }
+    @Test void ordinaryControllerConversionAndDirectReplacementAreRejected() {
+        assertFalse(BotTypeManager.convertBotType(body, BotTypeManager.BotType.TRAINING_BOT));
+        assertThrows(IllegalStateException.class, () -> CharacterStorage.addActiveBot(body.getId(), mock(BotSM.class)));
+        assertSame(actor, CharacterStorage.getBotById(body.getId()));
+    }
+    @Test void removeWaitsForInflightTickAndNoMutationOccursAfterItReturns() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1), stopStarted = new CountDownLatch(1);
+        when(effects.contact(body, map)).thenAnswer(inv -> {
+            entered.countDown(); assertTrue(release.await(3, TimeUnit.SECONDS)); return false;
+        });
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var tick = pool.submit(actor::updateState); assertTrue(entered.await(3, TimeUnit.SECONDS));
+            var removal = pool.submit(() -> { stopStarted.countDown(); actor.remove(); });
+            assertTrue(stopStarted.await(3, TimeUnit.SECONDS)); assertFalse(removal.isDone());
+            release.countDown(); tick.get(3, TimeUnit.SECONDS); removal.get(3, TimeUnit.SECONDS);
+            clearInvocations(effects); actor.updateState(); verifyNoInteractions(effects);
+        } finally { release.countDown(); }
+    }
+}

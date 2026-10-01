@@ -86,6 +86,19 @@ public class BotGeneration {
     /** Stable, world-unique names let persistent venue stock retain its owner across restarts. */
     public static int createBot(Point pos, MapleMap map, int baseClass, int minLevel,
                                 int maxLevel, int forcedJobId, String stableName) {
+        return createBot(pos, map, baseClass, minLevel, maxLevel, forcedJobId, stableName, true);
+    }
+
+    /** Pilot actors have no unfenced arrival animation or deferred decoration callback. */
+    public static Character createHybridPilot(Point pos, MapleMap map, String name) {
+        if (!soloMapling.itemPool.EquipMetadataCache.isInitialized())
+            throw new IllegalStateException("Bot equipment is still loading; retry after server startup completes.");
+        int id = createBot(pos, map, 100, 20, 20, 100, name, false);
+        return map.getChannelServer().getPlayerStorage().getCharacterById(id);
+    }
+
+    private static int createBot(Point pos, MapleMap map, int baseClass, int minLevel,
+                                 int maxLevel, int forcedJobId, String stableName, boolean arrival) {
         if (stableName != null && (!stableName.matches("[A-Za-z0-9]{4,13}")))
             throw new IllegalArgumentException("venue bot name");
         if (stableName != null && map.getChannelServer().getPlayerStorage().getCharacterByName(stableName) != null)
@@ -117,7 +130,7 @@ public class BotGeneration {
             // mass spawning isn't gated on each bot's arrival animation. Drop-down ->
             // turn-around ordering is preserved because it's one sequential task.
             Character finalBot = bot;
-            runAsync(() -> playSpawnChoreography(finalBot));
+            if (arrival) runAsync(() -> playSpawnChoreography(finalBot));
             return botId;
         } catch (RuntimeException failure) {
             if (stableName != null && map.getChannelServer().getPlayerStorage().getCharacterById(botId) == bot) {

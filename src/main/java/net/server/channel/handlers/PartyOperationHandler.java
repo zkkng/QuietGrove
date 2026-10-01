@@ -89,6 +89,10 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
                         return;
                     }
 
+                    if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(invited)) {
+                        player.yellowMessage("Hybrid pilot bots are not accepting party duties yet.");
+                        return;
+                    }
                     if (invited.getParty() == null) {
                         if (party == null) {
                             if (!Party.createParty(player, false)) {

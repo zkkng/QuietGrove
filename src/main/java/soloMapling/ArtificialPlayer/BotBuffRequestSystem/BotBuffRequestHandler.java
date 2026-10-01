@@ -188,6 +188,7 @@ public final class BotBuffRequestHandler {
         // otherwise be invisible here. isBot is id-based, so it catches registered + inert alike.
         for (Character chr : map.getCharacters()) {
             if (chr == null || !BotHelpers.isBot(chr)
+                    || soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(chr)
                     || soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(chr)) {
                 continue;
             }

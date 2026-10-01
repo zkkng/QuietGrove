@@ -83,6 +83,10 @@ public class Dispatcher implements Runnable {
                 logBotNotFound(botToCall[0]);
                 return;
             }
+            if (bot instanceof soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot pilot) {
+                pilot.chat(message.getSender(), message.getContent());
+                return; // never open legacy service menus or restart a retired pilot
+            }
 
             if (!bot.getRunning()) {
                 startNewBotSession(bot, message);

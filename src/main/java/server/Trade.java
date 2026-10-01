@@ -506,6 +506,13 @@ public class Trade {
 
     public static void inviteTrade(Character c1, Character c2) {
 
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c1)
+                || soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c2)) {
+            c1.message("Hybrid pilot bots do not trade yet.");
+            cancelTrade(c1, TradeResult.NO_RESPONSE);
+            return;
+        }
+
         if ((c1.isGM() && !c2.isGM()) && c1.gmLevel() < YamlConfig.config.server.MINIMUM_GM_LEVEL_TO_TRADE) {
             c1.message("You cannot trade with non-GM characters.");
             log.info(String.format("GM %s blocked from trading with %s due to GM level.", c1.getName(), c2.getName()));
