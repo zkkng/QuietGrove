@@ -45,7 +45,7 @@ pct exec 202 -- sha256sum '$guestReport'
 pct exec 202 -- cat '$guestReport'
 pct exec 202 -- grep -q '^result=ok' '$guestReport'
 "@
-    & $plink -batch -ssh -hostkey $hostKey -pw $password root@192.168.1.95 $remote
+    & $plink -batch -ssh -hostkey $hostKey -pw $password root@192.168.1.95 ($remote.Replace("`r", ""))
     if ($LASTEXITCODE -ne 0) { throw "Trial attach/read failed: $LASTEXITCODE" }
 } finally {
     $password = $null
