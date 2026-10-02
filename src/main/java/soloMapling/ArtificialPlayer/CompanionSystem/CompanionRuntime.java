@@ -36,6 +36,8 @@ public final class CompanionRuntime implements RecruitRequestCoordinator.Gateway
     }
     public static CompanionRuntime get() { return Holder.INSTANCE; }
     public static boolean active(Character bot) {
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(bot)
+                && !soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot.observed(bot.getMap())) return false;
         return bot != null && isBot(bot) && (CompanionTaskService.shared().task(bot.getId()).isPresent() || BossMonsterController.incidentActor(bot)
                 || server.events.gm.EventBotRuntime.physical(bot) || server.events.gm.GmEventService.getInstance().realPresence(bot)
                 || server.events.gm.IncidentService.exposed(bot));
@@ -132,6 +134,7 @@ public final class CompanionRuntime implements RecruitRequestCoordinator.Gateway
     public void recruitBoss(Character human, Integer named, String fingerprint) { recruit(human,named,fingerprint); }
     public void cancelBossRequests(int ownerId, CompanionTaskService.PartyKey party) { requests.cancel(ownerId,party); }
     private static BotTypeManager.BotType priorType(BotSM actor) {
+        if (actor instanceof soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot) return BotTypeManager.BotType.HYBRID_PILOT;
         if (actor instanceof TrainingBot) return BotTypeManager.BotType.TRAINING_BOT;
         if (actor instanceof SocialBot) return BotTypeManager.BotType.SOCIAL_BOT;
         if (actor instanceof TownWandererBot) return BotTypeManager.BotType.TOWN_WANDERER_BOT;
@@ -183,6 +186,14 @@ public final class CompanionRuntime implements RecruitRequestCoordinator.Gateway
             if (current == null || current.generation() != task.generation()
                     || CharacterStorage.getBotById(task.botId()) != previous) return;
             try {
+            if (previous instanceof soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot pilot) {
+                previous.getChr().setWorldRates();
+                if (!pilot.beginDuty(soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot.Mode.PARTY,
+                        task.generation(), new CompanionBot(previous.getChr()))) {
+                    release(task);
+                    return;
+                }
+            } else {
             previous.setRunning(false);
             previous.getChr().setWorldRates();
             previous.stopScheduledTask();
@@ -191,6 +202,7 @@ public final class CompanionRuntime implements RecruitRequestCoordinator.Gateway
             CharacterStorage.addActiveBot(task.botId(), companion);
             companion.setRunning(true);
             companion.startScheduledTask(0);
+            }
             } catch (RuntimeException failure) {
                 release(task);
                 org.slf4j.LoggerFactory.getLogger(CompanionRuntime.class).error("Companion activation rolled back for {}", task.botId(), failure);
@@ -214,6 +226,10 @@ public final class CompanionRuntime implements RecruitRequestCoordinator.Gateway
         BossCombatEvidence.clear(bot);
         if (bot.getEventInstance() != null) bot.getEventInstance().exitPlayer(bot);
         leaveCanonical(bot, token);
+        if (actor instanceof soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot pilot) {
+            pilot.endDuty(token.generation());
+            return;
+        }
         if (!tasks.owned(bot.getId()) && BotTypeManager.convertBotType(bot, BotTypeManager.BotType.valueOf(token.prior().botType()))) {
             if (CharacterStorage.getBotById(bot.getId()) instanceof TrainingBot restored)
                 restored.restoreCompanionHome(token.prior().homeMapId());

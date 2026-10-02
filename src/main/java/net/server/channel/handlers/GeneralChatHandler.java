@@ -73,6 +73,8 @@ public final class GeneralChatHandler extends AbstractPacketHandler {
             }
 
             boolean companionRequest = soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().chat(chr, s);
+            boolean pilotRequest = !companionRequest && soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.get().chat(chr, s);
+            companionRequest |= pilotRequest;
             if (!companionRequest) MessageQueue.getInstance().addMessage("primary", new ChatMessage(c.getPlayer(), s));
 
             BotBuffRequestHandler.tryHandle(chr, s); // SM: "hs pls" etc -> nearest eligible bot grants the buff

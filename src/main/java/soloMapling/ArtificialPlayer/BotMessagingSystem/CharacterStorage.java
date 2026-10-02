@@ -17,7 +17,11 @@ public class CharacterStorage {
     private static int currentIndex = 0;
 
     public static void addActiveBot(int id, BotSM character) {
-        activeBotMap.put(id, character);
+        activeBotMap.compute(id, (key, previous) -> {
+            if (previous instanceof soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot && previous != character)
+                throw new IllegalStateException("Remove the hybrid pilot before replacing its controller");
+            return character;
+        });
     }
 
     public static void removeActiveBot(int id) {

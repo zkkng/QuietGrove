@@ -101,6 +101,10 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
                             if (isBot(invited) && soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().directInvite(player, invited)) {
                                 break;
                             }
+                            if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(invited)) {
+                                player.yellowMessage("Companion recruitment is currently unavailable.");
+                                return;
+                            }
                             if (InviteCoordinator.createInvite(InviteType.PARTY, player, party.getId(), invited.getId())) {
                                 invited.sendPacket(PacketCreator.partyInvite(player));
                                 if (isBot(invited)) {

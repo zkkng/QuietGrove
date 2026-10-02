@@ -487,6 +487,7 @@ public class Trade {
     }
 
     public static void startTrade(Character chr) {
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(chr)) return;
         if (chr.getTrade() == null) {
             chr.setTrade(new Trade((byte) 0, chr));
         }
@@ -505,6 +506,13 @@ public class Trade {
     }
 
     public static void inviteTrade(Character c1, Character c2) {
+
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c1)
+                || soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c2)) {
+            c1.message("Hybrid pilot bots do not trade yet.");
+            cancelTrade(c1, TradeResult.NO_RESPONSE);
+            return;
+        }
 
         if ((c1.isGM() && !c2.isGM()) && c1.gmLevel() < YamlConfig.config.server.MINIMUM_GM_LEVEL_TO_TRADE) {
             c1.message("You cannot trade with non-GM characters.");
@@ -555,6 +563,12 @@ public class Trade {
     }
 
     public static void visitTrade(Character c1, Character c2) {
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c1)
+                || soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c2)) {
+            c1.message("Hybrid pilot bots do not trade yet.");
+            cancelTrade(c1, TradeResult.NO_RESPONSE);
+            return;
+        }
         InviteResult inviteRes = InviteCoordinator.answerInvite(InviteType.TRADE, c1.getId(), c2.getId(), true);
 
         InviteResultType res = inviteRes.result;

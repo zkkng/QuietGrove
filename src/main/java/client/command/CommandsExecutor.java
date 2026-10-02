@@ -543,6 +543,7 @@ public class CommandsExecutor {
         addCommand("betafmshop", 4, ArtificialFreeMarketCommand.class);
         addCommand("test", 4, TestDevCommand.class);
         addCommand("fmbot", 4, FMBotCommand.class);
+        addCommand("hybrid", 4, client.command.commands.gm4.HybridBotCommand.class);
         addCommand("tradebot", 4, TradeBotTestCommand.class);
         addCommand("env", 4, EnvironmentCommand.class);
 

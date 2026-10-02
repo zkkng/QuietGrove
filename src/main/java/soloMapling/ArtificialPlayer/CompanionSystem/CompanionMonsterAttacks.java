@@ -23,6 +23,8 @@ public final class CompanionMonsterAttacks {
     }
     private static boolean validDamage(Character c, DamageToken token) {
         if (c == null || token == null || !c.isAlive() || c.getMap() != token.map()) return false;
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(c)
+                && !soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot.observed(c.getMap())) return false;
         var current = damageToken(c);
         return token.task()>0 && token.task()==current.task() || token.event()>0 && token.event()==current.event()
                 || token.exposure()>0 && token.exposure()==current.exposure();

@@ -44,107 +44,112 @@ Also include commands for mass bot commands
 public class BotTypeManager {
 
     public enum BotType {
+        HYBRID_PILOT {
+            @Override protected void create(Character character) {
+                throw new IllegalStateException("Use !hybrid spawn to preserve the three-character pilot cap");
+            }
+        },
         DICE_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 DiceBot diceBot = new DiceBot(character);
                 CharacterStorage.addActiveBot(character.getId(), diceBot);
             }
         },
         TUTORIAL_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 TutorialBot tutBot = new TutorialBot(character);
                 CharacterStorage.addActiveBot(character.getId(), tutBot);
             }
         },
         FM_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 FMBot fmBot = new FMBot(character);
                 CharacterStorage.addActiveBot(character.getId(), fmBot);
             }
         },
         SCROLL_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 ScrollingBot scrollBot = new ScrollingBot(character);
                 CharacterStorage.addActiveBot(character.getId(), scrollBot);
             }
         },
         SELLING_MERCHANT_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 SellingMerchantBot bot = new SellingMerchantBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         },
         BUYING_MERCHANT_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 BuyingMerchantBot bot = new BuyingMerchantBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         },
         NX_MERCHANT_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 NXMerchantBot bot = new NXMerchantBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         },
         GACHA_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 GachaBot gachaBot = new GachaBot(character);
                 CharacterStorage.addActiveBot(character.getId(), gachaBot);
             }
         },
         HENESYS_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 HenesysBot henesysBot = new HenesysBot(character);
                 CharacterStorage.addActiveBot(character.getId(), henesysBot);
             }
         },
         HENESYS_JQ_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 HenesysJQBot jqBot = new HenesysJQBot(character);
                 CharacterStorage.addActiveBot(character.getId(), jqBot);
             }
         },
         GAME_ZONE_HOST_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 GameZoneHostBot bot = new GameZoneHostBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
 			}
 		},
         BLACKJACK_DEALER {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 BlackjackDealerBot bjBot = new BlackjackDealerBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bjBot);
 			}
 		},
         DROP_GAME_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 DropGameBot bot = new DropGameBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         },
         OPQ_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 OPQBot opqBot = new OPQBot(character);
                 CharacterStorage.addActiveBot(character.getId(), opqBot);
             }
         },
         SOCIAL_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 SocialBot socialBot = new SocialBot(character);
                 CharacterStorage.addActiveBot(character.getId(), socialBot);
@@ -152,7 +157,7 @@ public class BotTypeManager {
         },
         TOWN_WANDERER_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 TownWandererBot bot = new TownWandererBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
@@ -160,14 +165,14 @@ public class BotTypeManager {
         },
         TEST_ATTACK_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 TestAttackBot bot = new TestAttackBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         },
         TRAINING_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 soloMapling.ArtificialPlayer.CompanionSystem.CompanionBuild.initializeAmbient(character);
                 TrainingBot bot = new TrainingBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
@@ -175,13 +180,19 @@ public class BotTypeManager {
         },
         FOLLOWER_BOT {
             @Override
-            public void createAndSetBot(Character character) {
+            protected void create(Character character) {
                 FollowerBot bot = new FollowerBot(character);
                 CharacterStorage.addActiveBot(character.getId(), bot);
             }
         };
 
-        public abstract void createAndSetBot(Character character);
+        protected abstract void create(Character character);
+
+        public final void createAndSetBot(Character character) {
+            if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(character))
+                throw new IllegalStateException("Remove the hybrid pilot before assigning a legacy type");
+            create(character);
+        }
     }
 
     public static void manuallyStartBot(Character fakechar) {
@@ -216,6 +227,7 @@ public class BotTypeManager {
     // Re-type a live bot in place: stop the old FSM, wrap the SAME Character in a new one, start it.
     // Refused mid-trade (trades are sacred - tearing the FSM down would strand the trade partner).
     public static boolean convertBotType(Character fakechar, BotType botType) {
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(fakechar)) return false;
         BotSM existing = getBotById(fakechar.getId());
         if (existing != null) {
             if (existing.getState() == BotSM.BotState.TRADING) {
