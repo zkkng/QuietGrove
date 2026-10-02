@@ -93,7 +93,7 @@ public class BotGeneration {
     public static Character createHybridPilot(Point pos, MapleMap map, String name) {
         if (!soloMapling.itemPool.EquipMetadataCache.isInitialized())
             throw new IllegalStateException("Bot equipment is still loading; retry after server startup completes.");
-        int id = createBot(pos, map, 100, 20, 20, 100, name, false);
+        int id = createBot(pos, map, 100, 70, 70, 111, name, false);
         return map.getChannelServer().getPlayerStorage().getCharacterById(id);
     }
 
@@ -133,7 +133,7 @@ public class BotGeneration {
             if (arrival) runAsync(() -> playSpawnChoreography(finalBot));
             return botId;
         } catch (RuntimeException failure) {
-            if (stableName != null && map.getChannelServer().getPlayerStorage().getCharacterById(botId) == bot) {
+            if (map.getChannelServer().getPlayerStorage().getCharacterById(botId) == bot) {
                 try { removeBotFromServer(bot); }
                 catch (RuntimeException cleanupFailure) { failure.addSuppressed(cleanupFailure); }
             }
@@ -220,9 +220,9 @@ public class BotGeneration {
             actor.setRunning(false);
             actor.stopScheduledTask();
         }
-        fakechar.getMap().removePlayer(fakechar);
+        if (fakechar.getMap() != null) fakechar.getMap().removePlayer(fakechar);
         fakechar.getClient().getChannelServer().removePlayer(fakechar);
-        Server.getInstance().getWorld(fakechar.getMap().getWorld())
+        Server.getInstance().getWorld(fakechar.getClient().getWorld())
                 .getPlayerStorage().removePlayer(fakechar.getId());
         CharacterStorage.removeActiveBot(fakechar.getId());//
         BotBuffDriver.clearBot(fakechar.getId());   // Phase 3a: release buff recast timers
@@ -233,7 +233,7 @@ public class BotGeneration {
 //        final Channel channel = Server.getInstance().getChannel(BotSM.GameConstants.WORLD_SCANIA, BotSM.GameConstants.CHANNEL_1);
         fakechar.getClient().getChannelServer().addPlayer(fakechar);
 //        World world = Server.getInstance().getWorld(BotSM.GameConstants.WORLD_SCANIA);
-        Server.getInstance().getWorld(fakechar.getMap().getWorld())
+        Server.getInstance().getWorld(fakechar.getClient().getWorld())
                 .getPlayerStorage().addPlayer(fakechar);
     }
 

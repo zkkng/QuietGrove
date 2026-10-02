@@ -176,7 +176,7 @@ class HybridPilotBotTest {
         verify(body, never()).setTrade(any());
         verify(human, times(2)).message("Hybrid pilot bots do not trade yet.");
     }
-    @Test void partyAndEventControllersCannotRecruitPilot() {
+    @Test void eventControllersCannotRecruitPilot() {
         assertNull(server.events.gm.EventBotRuntime.prior(actor));
         assertFalse(server.events.gm.EventBotRuntime.eligible(actor, 0, 1));
         assertFalse(actor.isAvailableForAmbientActions());
@@ -216,5 +216,70 @@ class HybridPilotBotTest {
             release.countDown(); tick.get(3, TimeUnit.SECONDS); removal.get(3, TimeUnit.SECONDS);
             clearInvocations(effects); actor.updateState(); verifyNoInteractions(effects);
         } finally { release.countDown(); }
+    }
+
+    @Test void partyDecisionsKeepRootAndOnlyRunWhileObserved() {
+        BotSM delegate = mock(BotSM.class);
+        when(delegate.getChr()).thenReturn(body);
+        assertTrue(actor.beginDuty(HybridPilotBot.Mode.PARTY, 7, delegate));
+        assertFalse(actor.beginDuty(HybridPilotBot.Mode.PARTY, 8, delegate));
+        actor.updateState();
+        verify(delegate).updateState();
+        verify(delegate, never()).startScheduledTask();
+        verifyNoInteractions(effects);
+        assertSame(actor, CharacterStorage.getBotById(body.getId()));
+        when(map.getCharacters()).thenReturn(List.of()); actor.updateState();
+        verify(delegate, times(1)).updateState();
+        assertEquals(HybridPilotBot.Mode.DORMANT, actor.mode());
+        actor.endDuty(6); // Stale release cannot end current ownership.
+        when(map.getCharacters()).thenReturn(List.of(human)); actor.updateState();
+        verify(delegate, times(2)).updateState();
+        actor.endDuty(7); now.addAndGet(1500); actor.updateState();
+        verify(effects).attack(body, map);
+        verify(delegate).setRunning(false);
+        verify(body, never()).updateHp(anyInt());
+    }
+    @Test void offCancelsPartyBeforeRemovingBodyAndLateDelegateCannotRun() {
+        BotSM delegate = mock(BotSM.class); when(delegate.getChr()).thenReturn(body);
+        assertTrue(actor.beginDuty(HybridPilotBot.Mode.PARTY, 7, delegate));
+        actor.remove(); actor.updateState(); actor.endDuty(7);
+        var order = inOrder(delegate, effects);
+        order.verify(delegate).setRunning(false);
+        order.verify(effects).cancelDuty(body);
+        order.verify(effects).remove(body);
+        verify(delegate, never()).updateState();
+        assertFalse(actor.beginDuty(HybridPilotBot.Mode.PARTY, 8, delegate));
+    }
+    @Test void partyFaultReleasesDutyAndStopsRoot() {
+        BotSM delegate = mock(BotSM.class); when(delegate.getChr()).thenReturn(body);
+        doThrow(new IllegalStateException("party failure")).when(delegate).updateState();
+        assertTrue(actor.beginDuty(HybridPilotBot.Mode.PARTY, 7, delegate));
+        actor.updateState(); actor.updateState();
+        verify(delegate, times(1)).updateState(); verify(effects).cancelDuty(body);
+        assertEquals(HybridPilotBot.Mode.FAULTED, actor.mode());
+    }
+    @Test void partyChatSharesMailboxWithoutAmbientAttacksOrHealing() {
+        BotSM delegate = mock(BotSM.class); when(delegate.getChr()).thenReturn(body);
+        assertTrue(actor.beginDuty(HybridPilotBot.Mode.PARTY, 7, delegate));
+        assertTrue(actor.chat(human, "Hybrid1 status")); actor.updateState();
+        verify(delegate).updateState(); verify(effects).speak(eq(body), contains("PARTY"));
+        verify(effects, never()).attack(any(), any()); verify(effects, never()).contact(any(), any());
+        verify(body, never()).updateHp(anyInt());
+    }
+    @Test void failedPartyCleanupIsRetryableBeforeBodyRemoval() {
+        BotSM delegate = mock(BotSM.class); when(delegate.getChr()).thenReturn(body);
+        assertTrue(actor.beginDuty(HybridPilotBot.Mode.PARTY, 7, delegate));
+        doThrow(new IllegalStateException("cleanup")).doNothing().when(effects).cancelDuty(body);
+        assertThrows(IllegalStateException.class, actor::remove);
+        verify(effects, never()).remove(body);
+        actor.updateState(); verify(delegate, never()).updateState();
+        actor.remove(); verify(effects, times(2)).cancelDuty(body); verify(effects).remove(body);
+        assertTrue(actor.removed());
+    }
+    @Test void emptyMapPilotCannotReceiveCompanionDamage() {
+        when(map.getCharacters()).thenReturn(List.of());
+        assertFalse(soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.active(body));
+        assertEquals(-1, soloMapling.ArtificialPlayer.CompanionSystem.CompanionIncomingDamage.apply(body, 200, false));
+        verify(body, never()).addHP(anyInt());
     }
 }

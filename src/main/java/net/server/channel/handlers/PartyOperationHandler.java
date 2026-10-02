@@ -89,10 +89,6 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
                         return;
                     }
 
-                    if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(invited)) {
-                        player.yellowMessage("Hybrid pilot bots are not accepting party duties yet.");
-                        return;
-                    }
                     if (invited.getParty() == null) {
                         if (party == null) {
                             if (!Party.createParty(player, false)) {
@@ -104,6 +100,10 @@ public final class PartyOperationHandler extends AbstractPacketHandler {
                         if (party.getMembers().size() < 6) {
                             if (isBot(invited) && soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().directInvite(player, invited)) {
                                 break;
+                            }
+                            if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(invited)) {
+                                player.yellowMessage("Companion recruitment is currently unavailable.");
+                                return;
                             }
                             if (InviteCoordinator.createInvite(InviteType.PARTY, player, party.getId(), invited.getId())) {
                                 invited.sendPacket(PacketCreator.partyInvite(player));

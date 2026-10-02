@@ -74,4 +74,11 @@ final class HybridPilotEffects implements HybridPilotBot.Effects {
 
     @Override public void speak(Character bot, String message) { SocialCommands.BotFullChat(bot, message); }
     @Override public void remove(Character bot) { BotGeneration.removeBotFromServer(bot); }
+    @Override public void cancelDuty(Character bot) {
+        var tasks = soloMapling.ArtificialPlayer.CompanionSystem.CompanionTaskService.shared();
+        if (tasks.task(bot.getId()).isPresent())
+            soloMapling.ArtificialPlayer.CompanionSystem.CompanionRuntime.get().detached(bot);
+        soloMapling.ArtificialPlayer.GCMoveSystem.GCMovement.disable(bot);
+        CompanionIncomingDamage.clear(bot);
+    }
 }

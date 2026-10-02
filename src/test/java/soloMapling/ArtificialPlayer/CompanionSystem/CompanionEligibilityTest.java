@@ -15,7 +15,7 @@ class CompanionEligibilityTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"SocialBot", "TrainingBot", "TownWandererBot"})
+    @ValueSource(strings = {"SocialBot", "TrainingBot", "TownWandererBot", "HybridPilotBot"})
     void allowlistRequiresVerifiedBuild(String type) {
         assertTrue(CompanionEligibility.eligible(bot(type, true, true, 0, 1, 100, true, false,
                 false, false, 1, false, false), human));

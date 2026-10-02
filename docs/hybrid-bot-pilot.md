@@ -1,105 +1,72 @@
-# Limited hybrid bot pilot
+# Limited hybrid bot pilot: Henesys party combat
 
-This is the first executable slice of the shared-character/brain design. It creates **new, temporary actors**, capped at **three per server process**, without converting the existing population. Default population is zero; startup does not spawn or enable anything. No schema or configuration migration is needed.
+Three temporary level-70 Crusaders: **HybridOak**, **HybridAsh**, **HybridElm**. Each keeps one Character and one HybridPilotBot root while switching between dormant, social, nearby combat and party activity. Existing bots are not converted. Default population is zero; restart never respawns the trial. Cap: three per process. Lifetime: 30 minutes after creation.
 
-Implementation, packaged build, deployment, and native-client acceptance are separate milestones. This document describes implemented behavior and the owner test procedure, not a claim that the game trial already passed. Start with one bot on an isolated test server/database.
+The owner narrowed the event trial to **killing monsters, partying and Mushmom**. Quiz events, jump quests, trading, selling and merchant advertisements are outside this slice. The broader migration research remains in `docs/bot-brain/` on the research branch.
 
-## What this slice can test
+Implementation, deployment and a human playtest are separate statuses. Passing automated tests does not prove a crash-free client or a latency bound.
 
-- One Character and one HybridPilotBot controller persist across social/combat/dormant/dead states. The old social, training, and merchant controllers are never started for that character.
-- A level-20 warrior stands where spawned. A hostile ordinary monster entering basic melee reach triggers a real, character-stat attack. Clearing the nearby targets returns it to social mode.
-- Contact with a monster changes real HP and can kill the bot. Contact damage is checked before the social/combat decision; death prevents the next attack. There is no automatic revival or refill on wake/relocation.
-- Addressed chat works while fighting. `Hybrid1 hello`, `Hybrid1 status`, and `Hybrid1 sell` produce a greeting, a status reply, and an honest trade refusal, respectively. Use the actual name reported at spawn; serial numbers increase after each attempt.
-- Gameplay actions require a real client on that exact MapleMap object. A player in another channel, world or instance with the same numeric map ID does not count. BotClient characters do not count as observers.
-- Empty-map checks continue at the low, bounded pilot cadence, but do not attack, take pilot contact damage, speak, travel, earn abstract EXP or replay missed actions. Integrity cleanup still runs. The legacy world's independent timers are not globally rewritten by this experiment.
+## Interaction and test sequence
 
-## Deliberate limits
+1. Meet the named bots in **Henesys, channel 1**, map **100000000**. Say `HybridOak hello` or `HybridOak status`. Names require a word boundary and replies have a three-second cooldown.
+2. Invite each by the normal party interface while nearby. Recruitment uses the existing companion eligibility, six-member party limit and global companion cap. Leave about a second for the scheduled response. Companion recruitment must already be enabled in server configuration.
+3. Go to **Henesys Hunting Ground I (104040000)** and use `!hybrid here` to bring these three actors to your position. While partied they use existing companion navigation, skills, finite potions and normal damage/EXP paths. The root identity and inventory stay intact.
+4. For **Mushmom**, go to **100000005 (Pig Park)** and use `!hybrid here`. With Mushmom visible, say `help fight Mushmom here`. Existing party members must pass the real boss build/supplies checks. Alternatively `hunt Mushmom and keep partying` uses the existing hunt objective. Recruitment does not spawn or instantly kill the boss.
+5. Watch attacks, HP/MP and party membership. Talk to a named bot while fighting. Dismiss with `HybridOak dismiss companions`, then confirm the same bot resumes its ambient mode. Ambient mode is stationary basic melee against ordinary monsters; boss combat requires the party/hunt path.
+6. Leave the exact map with every human client. Check `!hybrid status` from elsewhere: DORMANT; no pilot attacks, conversation, autonomous travel or movement simulation. Return or relocate the cohort and verify there is no catch-up burst. The cheap heartbeat still runs.
+7. Run `!hybrid off` during combat. Confirm `!hybrid status` reports 0/3, party leases and movement stop, and legacy bots remain. Repeat spawn/off and check for duplicate sprites, stale party seats, server exceptions or client disconnects.
 
-This is **not full normal-player combat parity**. The first slice uses a single basic melee target and one damage line, with character attack power, defense and accuracy calculations adapted from the existing companion path. No skill costs are bypassed because this slice does not cast skills. The normal `MapleMap.damageMonster` path handles deaths and rewards; there is no second synthetic drop roll. It does not certify bot-only loot eligibility.
+**Map transitions in this trial:** the strict empty-map rule means bots cannot finish a route after the last human leaves their old map. Use `!hybrid here` after moving to another map. This explicitly preserves the requested sleep behavior; seamless following across empty maps is a later design decision. Following within an observed map uses the normal movement driver.
 
-The pilot does not walk, pursue targets, follow players, cast spells, use potions, pick up loot, trade, buy from shops, advertise stock, persist across restart, or join parties/events. Incoming monster projectile, magic, status and boss mechanics are not part of this first test. Bosses, fake/friendly monsters, encounter markers and incident-owned monsters are not attack/contact targets. Unknown monster hitboxes are skipped rather than guessed. Tests therefore need ordinary low-level monsters near the bot's feet.
+Keep a visible human on the combat map to supply ordinary monster control. Unit tests and server probes cannot substitute for checking rendered movement/attacks in the MapleStory client.
 
-`!hybrid here` is an explicit GM relocation tool for testing modes in different environments. It preserves the Character, controller, HP and possessions, and only moves this process's pilot actors within the GM's current channel. It is not autonomous travel or an ability offered to ordinary characters.
+## Commands and operator entry point
 
-The existing template/decoration path still supplies the appearance/build. The equipment cache must have finished normal server startup. These actors use existing ephemeral bot IDs; durable identity and inventory migration remain future work.
+GM level 4:
 
-## GM commands
-
-Commands require GM level 4, consistent with existing bot administration.
-
-| Command | Effect |
+| Command | Result |
 | --- | --- |
-| `!hybrid spawn` | Spawn one new pilot beside the GM |
-| `!hybrid spawn 2` | Add two, provided the server-wide total remains at most three |
-| `!hybrid status` | Show each pilot's name, ID, mode, map, HP, ticks, attacks, contact hits, replies, transitions and maximum tick duration |
-| `!hybrid here` | Relocate active pilot bodies in this channel to the GM's ordinary map and position |
-| `!hybrid off` | Stop and remove only this pilot cohort across the process |
-| `!hybrid help` | Show the short command and scope guide |
+| `!hybrid spawn [1-3]` | Add named pilots beside the GM, up to the process cap |
+| `!hybrid here` | Bring only this cohort to the GM in the same channel; preserve HP, inventory and root |
+| `!hybrid status` | Names, IDs, mode, map, HP, root ticks and ambient counters |
+| `!hybrid off` | Stop and remove only this cohort; retry if body cleanup fails |
+| `!hybrid help` | In-game quick guide |
 
-The command runner allows one administration operation at a time and rejects additional requests with a retry message; it does not queue unlimited spawns. Spawn admission also atomically checks the process cap. If part of a batch fails, it attempts to remove the new batch and leaves previously created pilots alone. Failed body cleanup stays tracked for another `off` attempt.
+`HybridPilotService.get().spawnHenesys(0, 1, 3)` is the explicit operator/probe entry point for the requested placement. It uses the same cap, names, factory and cleanup as the GM command. No startup switch or background population job invokes it.
 
-## Owner test checklist
+Names are reserved while their actor is tracked, including failed cleanup. Removed slots reuse their recognizable names. A spawn batch failure cleans up only the new batch. Administration commands admit one operation at a time instead of queuing unlimited requests.
 
-Keep the client visible for combat; hidden GMs do not supply the ordinary monster-control stream. A normal visible player can observe alongside the GM. Stand on solid ground before spawning/relocating these stationary bots. Map names/IDs below are verified against the repository's String.wz.
+## Root ownership and combat
 
-1. On the test build, run `!hybrid status`. Expect `0/3`, with existing bots behaving as before.
-2. Run `!warp 100000000` (Henesys). Then `!hybrid spawn 1` and note the name/ID. Say `<name> hello` and `<name> status`. Expect one reply, SOCIAL mode, and no additional brain/controller.
-3. Run `!warp 104040000` (Henesys Hunting Ground I). Stand near ordinary low-level monsters and run `!hybrid here`. Expect the same name/ID/HP. Within melee reach, attacks and contact counts should rise; HP may fall. Move it near another mob with `here` if none reach it naturally.
-4. Address it while it fights. Expect bounded conversation without a legacy menu, a trade dialog, a type change, or a second controller. Attempt a normal trade and a party invite; each must be refused without reserving inventory or leaving an invitation hanging.
-5. Return to town with `here`. Expect SOCIAL again and unchanged identity. Repeat town/field relocation ten times. Check for exceptions, duplicate sprites, reset HP, and unexpected tasks.
-6. With the pilot in the field, record status, then have **every real player leave that map instance**. From another map use `!hybrid status` twice, ten seconds apart. Expect DORMANT and unchanged attack/contact/reply counts. The cheap tick counter can increase. A second client in the same numeric map on another channel must not wake it.
-7. Re-enter the original map. Expect activity to resume within approximately one governor-adjusted tick, with no burst of catch-up attacks or stale conversation. The 500ms base cadence can be stretched by the existing wheel governor under load.
-8. Let one pilot die. Expect DEAD, no attack or conversation afterward, and no automatic HP restoration when moved. Remove and spawn a new one for subsequent tests.
-9. Run `!hybrid spawn 3` when one is already present. Expect refusal and still one actor. Fill to three with `spawn 2`, then repeat a spawn request; it must remain at three.
-10. During combat run `!hybrid off`, then `!hybrid status`. Expect zero pilot actors, no further pilot attacks/replies, and ordinary bots still present. Repeat spawn/off three times.
-11. In a separate soak, leave one healthy pilot for 30 minutes. Its actor/body should be removed when the lifetime expires, including on an empty map. A faulted pilot is already unscheduled and remains visible for diagnosis until `off`; faulted cleanup does not rely on the lifetime timer.
+- The shared BotTickService owns one root registration, base period 500 ms. Party activation constructs a CompanionBot decision adapter but **does not register its scheduler or replace CharacterStorage**. Its movement executor is separate existing physics, not another decision brain.
+- A real CompanionTaskService lease and canonical Party join precede party mode. Generation-matched release stops the delegate, removes the lease/party membership and returns to the same hybrid root. Legacy type conversion and direct registry replacement remain fenced.
+- All root decisions, chat, relocation and shutdown serialize on the actor. Empty-map observation uses the exact MapleMap and real Client, not numeric map IDs or legacy character-ID thresholds. The movement driver independently suppresses pilot physics/contact on empty maps, with a one-second idle wakeup.
+- The root mailbox is one expiring reply, not a growing queue. Unrelated chat does not wait on each pilot monitor. Companion/boss commands parse before pilot small talk so recruitment and dismissal are not swallowed. No LLM is involved.
+- The build uses level-budgeted AP/SP, real equipped items and one finite starter inventory. Full HP/MP is granted only at creation, not when switching modes. CompanionBuild's existing initialization is idempotent for an unchanged level.
+- Ambient combat uses one basic melee line, real accuracy/defense and map.damageMonster. Ambient contact can kill; it does not revive. Boss/fake/friendly/incident-owned targets and unknown hitboxes are excluded from this basic adapter.
+- Party mode inherits existing companion skill costs, supplies, incoming damage, movement, encounter authority and normal rewards. If a companion dies, the existing return-map recovery restores 30% HP and releases the party duty; it does not resurrect in the battle map.
+- Ambient attack/contact counters do **not** include delegated party actions. Use character HP/MP, party/hunt state and existing boss telemetry for the party trial. Root tick duration includes synchronous delegated work; movement has its own scheduling.
+- Legacy trade, merchant menus, ambient buff solicitation and GM event recruitment exclude pilots. Normal companion recruitment explicitly admits verified hybrid builds. The HYBRID_PILOT enum value is a restoration descriptor; its factory refuses creation outside the capped service.
+- Unexpected root/delegate errors stop that actor and log the failure. Faulted actors remain for diagnosis until `off`. Healthy actors expire after 30 minutes, including on empty maps. No database/schema migration or durable pilot inventory is introduced.
 
-Capture server exceptions, client crashes, any unexpected health/asset change, status before/after, process CPU/heap, and tick delay during a matched zero/one/three-pilot run. **Unit tests do not prove client stability or a latency bound.** Stop promotion on any duplicate controller, growing backlog, offscreen pilot gameplay, asset transfer, death/cleanup failure or client hang.
+## Tests and release gates
 
-## Ownership and isolation
+Automated coverage includes mode transitions, same-instance observation, ID-independent human detection, damage-before-attack death ordering, cooldowns, chat floods, stale messages, failure-stop, lifetime expiry, stop/tick races, conversion/trade/event isolation, same-channel relocation, global cap concurrency and partial cleanup. Party additions cover exact root/body preservation through the actual CompanionRuntime acceptance/release path, no delegate scheduling, stale generations, party failure cleanup, bounded chat and empty-map suppression.
 
-- A synchronized actor serializes its tick, addressed chat, relocation and stop. No independent movement/attack/chatter timer is started. The existing shared BotTickService owns its sole registration.
-- Stopping closes admission, clears the one-slot chat mailbox and unregisters the matching actor. It waits for an already executing action to leave the actor monitor. Late queued ticks and legacy restart requests cannot reactivate it.
-- One expiring chat slot and a three-second speech cooldown bound conversation. Ordinary unrelated chat does not acquire pilot actor monitors. Chat does not invoke an LLM.
-- Each attack/contact path checks the current map/observer before committing. As with ordinary server actions, a concurrently departing observer can overlap an already accepted synchronous action; after that action drains there is no offscreen simulation or catch-up.
-- Legacy type factories refuse a pilot **before constructing** a replacement, and CharacterStorage rejects replacement of a registered pilot. Existing types retain their normal factory behavior.
-- Legacy trade start/invite/visit, ordinary party invitations and ambient buff-request selection exclude pilots. Existing automatic companion/event eligibility requires known legacy activity types and therefore does not recruit them. Legacy named-chat dispatch is also fenced away from its service menus.
-- The pilot's first unexpected exception stops its scheduler and records/logs the failure. An `off` cleanup failure does not stop cleanup of the other pilots; retry remains possible.
-- The lifetime removes abandoned healthy actors after 30 minutes. No autonomous population generator, database record, global enable flag or type conversion is introduced.
+Run from this worktree with Java 21:
 
-These are cohort boundaries, not a universal redesign of all existing bot APIs. Do not combine the pilot trial with legacy force-attack, movement, summon/retype commands or runtime instrumentation that deliberately bypasses its controller.
+```powershell
+mvn -o '-Dmaven.repo.local=G:/Maplestory v83 server dev/tmp/bot-brain-maven-repository' verify
+```
+
+The local Maven executable is `G:/Maplestory v83 server dev/maven/apache-maven-3.9.8/bin/mvn.cmd`. Test results and a deployment receipt must record the actual tested source and artifact hashes. Do not present old v1 tests as verification of the party extension.
+
+Before release: commit the reviewed source; compare every changed live class to the exact source baseline; preserve unrelated live fixes and instrumentation; validate the candidate JAR; perform guarded deployment preflight against exact JAR/config/PID. Deployment must not silently disconnect an attached player. After startup: verify readiness, configuration hash, three names and IDs, exact Henesys/channel placement, root types, HP/build suitability, no extra pilot actors and empty-map dormancy. Human party/Mushmom acceptance remains outstanding until actually exercised.
 
 ## Rollback
 
-1. Run `!hybrid off`; verify `0/3` and no subsequent pilot actions. This is the normal runtime rollback and does not restart the server.
-2. If the server/client is unresponsive, stop the **test** server and restore the exact previously recorded test package/configuration using its release receipt. Restart starts with zero pilots. Save logs first when possible.
-3. No database migration is added. Do **not** restore a whole shared/live database to remove this feature. Removing bots does not undo earlier monster kills, shared EXP or drops received by other characters. This is why the first economy-impact check belongs on an isolated test database.
-4. Keep the old package until the native-client trial and soak are accepted. Promote neither the global bot population nor the production branch as a side effect of this test.
+1. `!hybrid off` is the immediate cohort rollback. It removes only the three pilot bodies and their active duties without restarting.
+2. For binary rollback, restore the exact pretrial `Server.jar` from the guarded release backup and restart using the release workflow. Keep configuration, scripts and database unchanged unless an observed problem specifically requires their restoration. The installer also snapshots the database; do not overwrite subsequent human progress merely to remove these ephemeral bots.
+3. A restart with the pilot-capable binary leaves zero pilots until explicitly spawned. No population flag or automatic conversion needs reversal.
 
-Production installation still follows [the repository release workflow](branch-and-release-workflow.md): approval of the exact tested source/package and a verified rollback location. A development JAR is not evidence of a live installation.
-
-## Automated validation and reproduction
-
-**Local verification, 2026-10-01:** Maven `verify` completed successfully with **3,999 tests, zero failures/errors/skips**, including **37 new pilot tests**, and assembled `target/Cosmic.jar`. The branch incorporates shared test baseline `47d3212e`. Native-client gameplay, database-backed acceptance, live load/soak and deployment rollback have not been performed.
-
-Earlier runs on the old research baseline reproduced its eight known script-context failures. The refreshed shared test branch contains their fixes. The first run after rebasing also exposed missing sparse-checkout fixtures; adding the committed fixture directories resolved those initialization errors. The successful result above is from the corrected checkout and final pilot source.
-
-The new HybridPilotBotTest, HybridPilotEffectsTest and HybridPilotServiceTest cover mode changes, same-instance observation, real-client identity, no empty-map mutations/catch-up, HP/death ordering, independent cooldowns, chat flooding/expiration, trade/type/event isolation, relocation, concurrent cap admission, partial spawn cleanup, retryable removal, lifetime expiration and stop-versus-in-flight action synchronization. Combat tests exercise the production effect adapter with mocked map/monster services and the actual melee packet builder. They are not native-client or database acceptance tests.
-
-Use JDK 21 and `mvn verify`; for a focused run use `mvn -Dtest=HybridPilot*Test test`. The complete run requires the committed Mob.wz, Reactor.wz, UI.wz and server-config fixtures. In a sparse worktree, include those directories before running. Database `*IT` suites are separate and are not claimed by the ordinary Surefire run.
-
-Local offline command used in this workspace:
-
-```powershell
-$env:JAVA_HOME = 'G:/Maplestory v83 server dev/tools/java21/jdk-21.0.12.1+1'
-$env:TEMP = (Resolve-Path target/test-tmp).Path
-$env:TMP = $env:TEMP
-& 'G:/Maplestory v83 server dev/maven/apache-maven-3.9.8/bin/mvn.cmd' -o `
-  '-Dmaven.repo.local=G:/Maplestory v83 server dev/tmp/bot-brain-maven-repository' verify
-```
-
-After the final source is committed and verification passes, use `python tools/release/package_release.py --output release/hybrid-pilot`, then `verify_release.py` with that package's commit and SHA256. The generated manifest and hash file identify the concrete test candidate; generated binaries/manifests stay outside source commits.
-
-## Next expansion gate
-
-After the one/three-bot native-client checks pass, add one capability at a time under the same cap: synchronous movement ownership, wider supported combat/resource rules, then finite inventory/persistence and trade. Keep the existing population unchanged until those separate gates pass. Enabling the old synthetic merchant paths is not an acceptable shortcut for the next pilot.
+Stop expansion on duplicate controllers, stale party ownership, offscreen pilot actions, unbounded work, asset duplication, failed cleanup, rising exceptions or a client hang. Compare zero/one/three-bot CPU/heap and tick behavior during a matched observed-map trial before any wider rollout.

@@ -14,10 +14,11 @@ import java.util.List;
 public final class HybridPilotService {
     public static final int LIMIT = 3;
     private static final HybridPilotService INSTANCE = new HybridPilotService(HybridPilotService::create);
-    interface Factory { HybridPilotBot create(Character owner, String name); }
+    interface Factory { HybridPilotBot create(MapleMap map, Point position, String name); }
     private final Factory factory;
     private final List<HybridPilotBot> bots = new java.util.concurrent.CopyOnWriteArrayList<>();
-    private long serial;
+    private static final List<String> NAMES = List.of("HybridOak", "HybridAsh", "HybridElm");
+    private final java.util.Map<HybridPilotBot, String> names = new java.util.IdentityHashMap<>();
 
     HybridPilotService(Factory factory) { this.factory = factory; }
     public static HybridPilotService get() { return INSTANCE; }
@@ -26,11 +27,10 @@ public final class HybridPilotService {
                 && pilot.getChr() == bot;
     }
 
-    private static HybridPilotBot create(Character owner, String name) {
-        MapleMap map = owner.getMap();
-        if (map == null || map.getEventInstance() != null || owner.getEventInstance() != null || owner.getPartyQuest() != null)
+    private static HybridPilotBot create(MapleMap map, Point position, String name) {
+        if (map == null || map.getEventInstance() != null)
             throw new IllegalArgumentException("Spawn the pilot on an ordinary map outside a party quest/event.");
-        Character body = BotGeneration.createHybridPilot(new Point(owner.getPosition()), map, name);
+        Character body = BotGeneration.createHybridPilot(new Point(position), map, name);
         try {
             body.setGMLevel(0);
             CompanionBuild.initializeAmbient(body);
@@ -38,6 +38,7 @@ public final class HybridPilotService {
             CharacterStorage.addActiveBot(body.getId(), bot);
             // Full HP only at initial creation, never on a mode change, relocation or wake.
             body.updateHp(body.getCurrentMaxHp());
+            body.updateMp(body.getCurrentMaxMp());
             return bot;
         } catch (RuntimeException failure) {
             try { BotGeneration.removeBotFromServer(body); }
@@ -47,13 +48,30 @@ public final class HybridPilotService {
     }
 
     public synchronized List<String> spawn(Character owner, int count) {
+        if (owner.getEventInstance() != null || owner.getPartyQuest() != null)
+            throw new IllegalArgumentException("Leave the party quest/event before spawning pilots.");
+        return spawnAt(owner.getMap(), owner.getPosition(), count);
+    }
+
+    /** Explicit operator entry point, also used by the guarded live trial probe. */
+    public synchronized List<String> spawnHenesys(int world, int channel, int count) {
+        var server = net.server.Server.getInstance().getChannel(world, channel);
+        if (server == null) throw new IllegalArgumentException("Channel unavailable.");
+        MapleMap map = server.getMapFactory().getMap(100000000);
+        return spawnAt(map, map.getPortal(0).getPosition(), count);
+    }
+
+    private List<String> spawnAt(MapleMap map, Point position, int count) {
         bots.removeIf(HybridPilotBot::removed);
+        names.keySet().retainAll(bots);
         if (count < 1 || count > LIMIT || bots.size() + count > LIMIT)
             throw new IllegalArgumentException("Pilot limit is three total; use !hybrid status or !hybrid off.");
         List<HybridPilotBot> added = new ArrayList<>();
         try {
             for (int i = 0; i < count; i++) {
-                HybridPilotBot bot = factory.create(owner, "Hybrid" + (++serial));
+                String name = NAMES.stream().filter(n -> !names.containsValue(n)).findFirst().orElseThrow();
+                HybridPilotBot bot = factory.create(map, position, name);
+                names.put(bot, name);
                 bots.add(bot);
                 added.add(bot);
                 bot.startScheduledTask();

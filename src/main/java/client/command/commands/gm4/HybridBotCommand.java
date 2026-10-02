@@ -17,8 +17,8 @@ public final class HybridBotCommand extends Command {
         var owner = client.getPlayer();
         if (params.length == 0 || params[0].equalsIgnoreCase("help")) {
             owner.yellowMessage("!hybrid spawn [1-3] | status | here | off. Default: zero bots; max three server-wide.");
-            owner.yellowMessage("Level-20 melee pilot: nearby combat, real contact HP/death, addressed chat, empty-map sleep.");
-            owner.yellowMessage("Say 'Hybrid1 hello' or 'Hybrid1 status'. No walking, trades, shops, loot pickup or party/event duty yet.");
+            owner.yellowMessage("Level-70 Crusaders: HybridOak, HybridAsh, HybridElm. Party combat and addressed chat; empty-map sleep.");
+            owner.yellowMessage("Invite them to your party. Say 'HybridOak hello'. Use !hybrid here after changing maps. No trading or quiz events.");
             return;
         }
         String command = params[0].toLowerCase(Locale.ROOT);

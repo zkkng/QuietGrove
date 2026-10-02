@@ -13,7 +13,7 @@ import static org.mockito.Mockito.*;
 class HybridPilotServiceTest {
     final Character owner = mock(Character.class);
     final AtomicInteger created = new AtomicInteger();
-    final HybridPilotService service = new HybridPilotService((p, name) -> {
+    final HybridPilotService service = new HybridPilotService((map, point, name) -> {
         created.incrementAndGet();
         HybridPilotBot actor = mock(HybridPilotBot.class);
         AtomicBoolean removed = new AtomicBoolean();
@@ -30,12 +30,12 @@ class HybridPilotServiceTest {
         assertEquals(0, created.get());
     }
     @Test void repeatedCallsCannotExceedGlobalCapAndOffReleasesSlots() {
-        assertEquals(2, service.spawn(owner, 2).size());
+        assertEquals(java.util.List.of("HybridOak", "HybridAsh"), service.spawn(owner, 2));
         assertThrows(IllegalArgumentException.class, () -> service.spawn(owner, 2));
-        service.spawn(owner, 1); assertEquals(3, created.get());
+        assertEquals(java.util.List.of("HybridElm"), service.spawn(owner, 1)); assertEquals(3, created.get());
         assertThrows(IllegalArgumentException.class, () -> service.spawn(owner, 1));
         assertEquals(3, service.off()); assertEquals(0, service.off());
-        service.spawn(owner, 3); assertEquals(6, created.get());
+        assertEquals(java.util.List.of("HybridOak", "HybridAsh", "HybridElm"), service.spawn(owner, 3)); assertEquals(6, created.get());
     }
     @Test void concurrentSpawnsReserveCapacityAtomically() throws Exception {
         AtomicInteger successes = new AtomicInteger();
@@ -53,7 +53,7 @@ class HybridPilotServiceTest {
         when(first.status()).thenReturn("existing");
         when(second.removed()).thenReturn(false, true);
         AtomicInteger calls = new AtomicInteger();
-        HybridPilotService cohort = new HybridPilotService((p, name) -> switch (calls.incrementAndGet()) {
+        HybridPilotService cohort = new HybridPilotService((map, point, name) -> switch (calls.incrementAndGet()) {
             case 1 -> first; case 2 -> second; default -> throw new IllegalStateException("spawn failure");
         });
         cohort.spawn(owner, 1);
@@ -64,7 +64,7 @@ class HybridPilotServiceTest {
         HybridPilotBot failed = mock(HybridPilotBot.class), ok = mock(HybridPilotBot.class);
         when(failed.status()).thenReturn("fault"); when(ok.status()).thenReturn("ok");
         AtomicInteger calls = new AtomicInteger();
-        HybridPilotService cohort = new HybridPilotService((p, name) -> calls.incrementAndGet() == 1 ? failed : ok);
+        HybridPilotService cohort = new HybridPilotService((map, point, name) -> calls.incrementAndGet() == 1 ? failed : ok);
         cohort.spawn(owner, 2);
         when(ok.removed()).thenReturn(true);
         doThrow(new IllegalStateException("cleanup")).when(failed).remove();

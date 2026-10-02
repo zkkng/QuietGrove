@@ -109,6 +109,9 @@ final class GCMovementDriver {
 
     private static long nextDelayMs(BotMovementState entry) {
         Character bot = entry.bot;
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(bot)
+                && !soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot.observed(bot.getMap()))
+            return UNOBSERVED_IDLE_TICK_MS;
         boolean active = bot != null && bot.getMap() != null
                 && ObserverTracker.isActiveMap(bot.getMapId());
         if (active || server.events.gm.GmEventService.getInstance().realPresence(bot)
@@ -154,6 +157,8 @@ final class GCMovementDriver {
             stop(entry);
             return;
         }
+        if (soloMapling.ArtificialPlayer.HybridPilot.HybridPilotService.isPilot(bot)
+                && !soloMapling.ArtificialPlayer.HybridPilot.HybridPilotBot.observed(bot.getMap())) return;
         // Pick up runtime profile changes (party Haste) before the map-change branch, so onMapChange warms
         // the new map's graph with the up-to-date profile. Throttled + no-op when unchanged (see helper).
         maybeRefreshProfile(entry);
@@ -161,7 +166,6 @@ final class GCMovementDriver {
             onMapChange(entry, bot);
             return;
         }
-
         BotEventObstacles.tick(entry, bot);
         if (server.events.gm.EventBotRuntime.physical(bot) && !bot.isAlive()) return;
 

@@ -13,18 +13,19 @@ import soloMapling.server.BotTickService;
 import java.util.Locale;
 import java.util.function.LongSupplier;
 
-/** An opt-in, stationary social/combat canary. Never wraps a self-scheduling legacy activity. */
+/** One persistent actor; party decisions are delegated without starting another brain scheduler. */
 public final class HybridPilotBot extends BotSM {
     private static final Logger log = LoggerFactory.getLogger(HybridPilotBot.class);
     public static final long PERIOD_MS = 500;
     public static final long LIFETIME_MS = 30 * 60_000;
-    public enum Mode { DORMANT, SOCIAL, COMBAT, DEAD, BLOCKED, FAULTED, STOPPED }
+    public enum Mode { DORMANT, SOCIAL, COMBAT, PARTY, DEAD, BLOCKED, FAULTED, STOPPED }
 
     interface Effects {
         boolean contact(Character bot, MapleMap map);
         boolean attack(Character bot, MapleMap map);
         void speak(Character bot, String message);
         void remove(Character bot);
+        default void cancelDuty(Character bot) { }
     }
 
     private record Reply(Character sender, MapleMap map, String text, long expires) {}
@@ -37,6 +38,10 @@ public final class HybridPilotBot extends BotSM {
     private long nextAttack, nextContact, nextSpeech;
     private long ticks, attacks, contacts, speeches, transitions, maxTickNanos;
     private String failure = "";
+    private BotSM duty;
+    private long dutyGeneration;
+    private Mode dutyMode;
+    private boolean dutyCleanupPending;
 
     public HybridPilotBot(Character bot) {
         this(bot, System::currentTimeMillis, new HybridPilotEffects());
@@ -82,6 +87,40 @@ public final class HybridPilotBot extends BotSM {
         state = BotState.FINISHED;
         transition(Mode.STOPPED);
         if (CharacterStorage.getBotById(getChr().getId()) == this) BotTickService.unregister(getChr().getId());
+        if (duty != null) {
+            dutyCleanupPending = true;
+            duty.setRunning(false);
+            duty = null;
+            dutyGeneration = 0;
+        }
+        if (dutyCleanupPending) {
+            effects.cancelDuty(getChr());
+            dutyCleanupPending = false;
+        }
+    }
+
+    /** Reuse the tested activity's decisions, never its scheduler or registry identity. */
+    public synchronized boolean beginDuty(Mode kind, long generation, BotSM activity) {
+        if (closed || !getRunning() || duty != null || generation <= 0 || activity.getChr() != getChr()
+                || kind != Mode.PARTY
+                || CharacterStorage.getBotById(getChr().getId()) != this) return false;
+        duty = activity;
+        dutyGeneration = generation;
+        dutyMode = kind;
+        reply = null;
+        activity.setRunning(true);
+        transition(kind);
+        return true;
+    }
+
+    public synchronized void endDuty(long generation) {
+        if (generation != dutyGeneration || duty == null) return;
+        duty.setRunning(false);
+        duty = null;
+        dutyGeneration = 0;
+        reply = null;
+        nextAttack = nextContact = clock.getAsLong() + 1500;
+        if (!closed) transition(getChr().isAlive() ? Mode.SOCIAL : Mode.DEAD);
     }
 
     /** Stop drains the actor monitor before removing its body; off returning means no pilot action is in flight. */
@@ -119,6 +158,12 @@ public final class HybridPilotBot extends BotSM {
                 transition(Mode.DORMANT);
                 return;
             }
+            if (duty != null) {
+                transition(dutyMode);
+                duty.updateState();
+                processReply(now, map);
+                return;
+            }
             if (!bot.isAlive()) { reply = null; transition(Mode.DEAD); return; }
             if (!usable(bot, map)) { reply = null; transition(Mode.BLOCKED); return; }
 
@@ -139,16 +184,7 @@ public final class HybridPilotBot extends BotSM {
                 if (attacked) { attacks++; nextAttack = now + 1500; }
                 transition(attacked ? Mode.COMBAT : Mode.SOCIAL);
             }
-            if (reply != null && now >= nextSpeech) {
-                Reply pending = reply;
-                reply = null;
-                if (now < pending.expires() && pending.map() == map && pending.sender().getMap() == map
-                        && usable(bot, map)) {
-                    effects.speak(bot, pending.text());
-                    speeches++;
-                    nextSpeech = now + 3000;
-                }
-            }
+            processReply(now, map);
         } catch (Exception e) {
             stopScheduledTask();
             transition(Mode.FAULTED);
@@ -171,6 +207,18 @@ public final class HybridPilotBot extends BotSM {
                 : "Hey " + sender.getName() + "! I'm watching for nearby monsters while we talk.";
         reply = new Reply(sender, sender.getMap(), answer, now + 3000);
         return true;
+    }
+
+    private void processReply(long now, MapleMap map) {
+        if (reply == null || now < nextSpeech) return;
+        Reply pending = reply;
+        reply = null;
+        if (!closed && now < pending.expires() && pending.map() == map && pending.sender().getMap() == map
+                && getChr().getMap() == map && getChr().isAlive() && observed(map)) {
+            effects.speak(getChr(), pending.text());
+            speeches++;
+            nextSpeech = now + 3000;
+        }
     }
 
     static boolean addressed(String botName, String text) {

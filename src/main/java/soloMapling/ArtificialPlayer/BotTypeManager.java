@@ -44,6 +44,11 @@ Also include commands for mass bot commands
 public class BotTypeManager {
 
     public enum BotType {
+        HYBRID_PILOT {
+            @Override protected void create(Character character) {
+                throw new IllegalStateException("Use !hybrid spawn to preserve the three-character pilot cap");
+            }
+        },
         DICE_BOT {
             @Override
             protected void create(Character character) {
