@@ -22,7 +22,8 @@ public final class HybridPilotService {
     HybridPilotService(Factory factory) { this.factory = factory; }
     public static HybridPilotService get() { return INSTANCE; }
     public static boolean isPilot(Character bot) {
-        return bot != null && CharacterStorage.getBotById(bot.getId()) instanceof HybridPilotBot;
+        return bot != null && CharacterStorage.getBotById(bot.getId()) instanceof HybridPilotBot pilot
+                && pilot.getChr() == bot;
     }
 
     private static HybridPilotBot create(Character owner, String name) {
@@ -95,7 +96,10 @@ public final class HybridPilotService {
     }
 
     public boolean chat(Character sender, String text) {
-        for (HybridPilotBot bot : bots) if (bot.chat(sender, text)) return true;
+        // Unrelated player chat never waits on a pilot's combat or lifecycle monitor.
+        for (HybridPilotBot bot : bots)
+            if (sender.getMap() == bot.getChr().getMap() && HybridPilotBot.addressed(bot.getChr().getName(), text)
+                    && bot.chat(sender, text)) return true;
         return false;
     }
 }

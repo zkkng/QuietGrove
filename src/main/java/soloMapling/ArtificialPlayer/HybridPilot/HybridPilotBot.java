@@ -160,9 +160,8 @@ public final class HybridPilotBot extends BotSM {
     /** One expiring mailbox slot; a chat flood cannot create tasks or an unbounded backlog. */
     public synchronized boolean chat(Character sender, String text) {
         if (closed || !getRunning() || sender.getMap() != getChr().getMap()) return false;
-        String name = getChr().getName().toLowerCase(Locale.ROOT);
         String normalized = text.trim().toLowerCase(Locale.ROOT);
-        if (!(normalized.equals(name) || normalized.startsWith(name + " ") || normalized.startsWith(name + ":"))) return false;
+        if (!addressed(getChr().getName(), text)) return false;
         long now = clock.getAsLong();
         if (reply != null || now < nextSpeech || !getChr().isAlive()) return true;
         String answer = normalized.contains("buy") || normalized.contains("sell") || normalized.contains("trade")
@@ -172,6 +171,12 @@ public final class HybridPilotBot extends BotSM {
                 : "Hey " + sender.getName() + "! I'm watching for nearby monsters while we talk.";
         reply = new Reply(sender, sender.getMap(), answer, now + 3000);
         return true;
+    }
+
+    static boolean addressed(String botName, String text) {
+        String name = botName.toLowerCase(Locale.ROOT);
+        String normalized = text.trim().toLowerCase(Locale.ROOT);
+        return normalized.equals(name) || normalized.startsWith(name + " ") || normalized.startsWith(name + ":");
     }
 
     private void transition(Mode next) { if (mode != next) { mode = next; transitions++; } }

@@ -164,8 +164,45 @@ class HybridPilotBotTest {
     }
     @Test void ordinaryControllerConversionAndDirectReplacementAreRejected() {
         assertFalse(BotTypeManager.convertBotType(body, BotTypeManager.BotType.TRAINING_BOT));
+        for (var type : BotTypeManager.BotType.values())
+            assertThrows(IllegalStateException.class, () -> type.createAndSetBot(body));
         assertThrows(IllegalStateException.class, () -> CharacterStorage.addActiveBot(body.getId(), mock(BotSM.class)));
         assertSame(actor, CharacterStorage.getBotById(body.getId()));
+    }
+    @Test void pilotCannotEnterLegacyTradeThroughAnyEntryPoint() {
+        server.Trade.startTrade(body);
+        server.Trade.inviteTrade(human, body);
+        server.Trade.visitTrade(human, body);
+        verify(body, never()).setTrade(any());
+        verify(human, times(2)).message("Hybrid pilot bots do not trade yet.");
+    }
+    @Test void partyAndEventControllersCannotRecruitPilot() {
+        assertNull(server.events.gm.EventBotRuntime.prior(actor));
+        assertFalse(server.events.gm.EventBotRuntime.eligible(actor, 0, 1));
+        assertFalse(actor.isAvailableForAmbientActions());
+    }
+    @Test void manualRelocationPreservesHpAndControllerAndClearsOldConversation() {
+        var channel = mock(net.server.channel.Channel.class);
+        MapleMap destination = mock(MapleMap.class);
+        when(map.getChannelServer()).thenReturn(channel); when(destination.getChannelServer()).thenReturn(channel);
+        when(human.getPosition()).thenReturn(new java.awt.Point(40, 80));
+        actor.chat(human, "Hybrid1 hello"); when(human.getMap()).thenReturn(destination);
+        assertTrue(actor.relocate(human));
+        verify(body).changeMap(destination, new java.awt.Point(40, 80));
+        verify(body, never()).updateHp(anyInt()); assertSame(actor, CharacterStorage.getBotById(body.getId()));
+        when(human.getMap()).thenReturn(map); actor.updateState(); verify(effects, never()).speak(any(), any());
+    }
+    @Test void relocationRefusesCrossChannelAndRetiredActor() {
+        MapleMap other = mock(MapleMap.class);
+        when(map.getChannelServer()).thenReturn(mock(net.server.channel.Channel.class));
+        when(other.getChannelServer()).thenReturn(mock(net.server.channel.Channel.class));
+        when(human.getMap()).thenReturn(other); assertFalse(actor.relocate(human));
+        when(human.getMap()).thenReturn(map); actor.stopScheduledTask(); assertFalse(actor.relocate(human));
+        verify(body, never()).changeMap(any(MapleMap.class), any(java.awt.Point.class));
+    }
+    @Test void eventMapEvenWithoutCharacterEventRegistrationIsBlocked() {
+        when(map.getEventInstance()).thenReturn(mock(scripting.event.EventInstanceManager.class));
+        actor.updateState(); verifyNoInteractions(effects); assertEquals(HybridPilotBot.Mode.BLOCKED, actor.mode());
     }
     @Test void removeWaitsForInflightTickAndNoMutationOccursAfterItReturns() throws Exception {
         CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1), stopStarted = new CountDownLatch(1);
