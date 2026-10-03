@@ -1,4 +1,8 @@
-# Weekly checkpoint (2026-09-30)
+# Current critical release (2026-10-01)
+
+The owner narrowed the project to the original small trainer and critical crash fixes. Use bin/SoloTrainer.exe; EXE -> INJECT HAX -> powers remains. Fly branch repair, rapid byte guard correction, exited-process filtering and HRESULT/error handling repairs are installed with rollback copies. See docs/trainer-critical-release-2026-10-01.md for installed identities, evidence and the separate unresolved graphics resource crash. The historical 70-control catalog and social scope are not claimed complete.
+
+# Weekly checkpoint (2026-09-30, historical)
 
 See `docs/trainer-weekly-checkpoint-2026-09-30.md` and `docs/trainer-depth-test-matrix-2026-09-30.md` from the repository root. Candidate v16 is frozen, compiled and uninstalled; combined Java3940/3940 passed, server package/dry-run only. The installed v0.5 client is currently hung; diagnostic evidence and unverified native mitigation are preserved. Windows signing and real MariaDB execution remain gates. The older release notes below are historical and do not establish current acceptance.
 

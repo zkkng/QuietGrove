@@ -16,11 +16,11 @@
 
 // Diagnostics plus the narrowly verified null player-pool dispatch guard.
 namespace {
-constexpr char Build[]="solo-diagnostics-20261001-v5-fault-code";
+constexpr char Build[]="solo-diagnostics-20261001-v6-startup-cpp";
 constexpr unsigned Capacity=128;
 enum Kind : DWORD { Receive=1, Send=2, Connect=3, Close=4, Shutdown=5,
     AsyncReceive=6, AsyncSend=7, ProcessExit=8, ProcessTerminate=9, Fault=10, UiStall=11,
-    PlayerPacket=12, NullPlayerPool=13 };
+    PlayerPacket=12, NullPlayerPool=13, CppException=14 };
 struct Event { LONG sequence; DWORD tick,thread,kind,a,b,c; };
 struct Slot { volatile LONG busy; Event event; };
 Slot ring[Capacity]{};
@@ -61,6 +61,7 @@ wchar_t root[MAX_PATH]{},logPath[MAX_PATH]{},faultPath[MAX_PATH]{},dumpTool[MAX_
 char session[80]{};
 FaultRecord faultRecord{}; // One bounded preallocated record; no heap in VEH.
 volatile LONG dumpRequested=0,dumps=0;
+volatile LONG firstCppCaptured=0;
 auto realRecv=&recv; auto realSend=&send; auto realConnect=&connect;
 auto realClose=&closesocket; auto realShutdown=&shutdown;
 auto realWSARecv=&WSARecv; auto realWSASend=&WSASend;
@@ -246,16 +247,27 @@ void RequestDump() {
 }
 LONG CALLBACK OnException(EXCEPTION_POINTERS* p) {
     DWORD code=p->ExceptionRecord->ExceptionCode;
+    bool originalCaptured=false;
     // Read only the four-byte code of the exact known native ZException type.
     // Preserve its original throw stack before WndProc's catch destroys pools.
     if(gameHost && code==0xE06D7363 && p->ExceptionRecord->NumberParameters==3 && p->ExceptionRecord->ExceptionInformation[2]==0x00b44ee0){
         const void* object=reinterpret_cast<void*>(p->ExceptionRecord->ExceptionInformation[1]);
         if(Readable(object,4)){
             DWORD nativeCode=0;std::memcpy(&nativeCode,object,4);
-            if(nativeCode==5){Record(Fault,code,5);Lifecycle(13);Critical(Fault,p);RequestDump();}
+            if(nativeCode==5){Record(Fault,code,5);Lifecycle(13);Critical(Fault,p);RequestDump();originalCaptured=true;}
         }
     }
-    if(code==0xE06D7363)Record(Fault,code,reinterpret_cast<DWORD>(p->ExceptionRecord->ExceptionAddress),p->ExceptionRecord->NumberParameters);
+    if(code==0xE06D7363){
+        Record(Fault,code,reinterpret_cast<DWORD>(p->ExceptionRecord->ExceptionAddress),p->ExceptionRecord->NumberParameters);
+        // Startup errors can be caught by the client's outer handler and close
+        // the app without an AV. Retain the FIRST C++ throw's native context and
+        // type/object addresses, even when it is handled. Do not dereference an
+        // unknown exception object or count this as an unhandled crash.
+        // One snapshot and the existing two-dump ceiling bound cost/retention.
+        if(InterlockedCompareExchange(&firstCppCaptured,1,0)==0 && !originalCaptured){
+            Critical(CppException,p);RequestDump();
+        }
+    }
     if(code==EXCEPTION_ACCESS_VIOLATION || code==EXCEPTION_IN_PAGE_ERROR || code==EXCEPTION_ILLEGAL_INSTRUCTION || code==EXCEPTION_STACK_OVERFLOW || code==0xC0000374 || code==0xC0000409){
         Record(Fault,code,reinterpret_cast<DWORD>(p->ExceptionRecord->ExceptionAddress));
         Critical(Fault,p);

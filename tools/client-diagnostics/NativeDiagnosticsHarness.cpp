@@ -47,6 +47,13 @@ int main(int argc,char** argv){
     if(argc>1 && !strcmp(argv[1],"fault")){
         SyntheticFault();
     }
+    if(argc>1 && !strcmp(argv[1],"cpp")){
+        try { throw static_cast<DWORD>(0x80004005); }
+        catch(DWORD result) {
+            if(result!=0x80004005)return 22;
+            std::puts("C++ startup HRESULT propagated unchanged to harness handler");
+        }
+    }
     if(argc>1 && !strcmp(argv[1],"saturation"))for(int i=0;i<24;++i)SyntheticFault();
     Sleep(6500);std::puts("socket payload preserved; error semantics preserved; harness complete");
     ExitProcess(0);

@@ -70,8 +70,19 @@ namespace SoloTrainer {
         public int GameProcessId;
         private string resetGeneration;
         private ClientAdapter(NamedPipeClientStream stream,int gameProcessId) { pipe=stream; GameProcessId=gameProcessId; }
+        public static ClientAdapter Reuse(ClientAdapter existing) {
+            if(existing==null) return null;
+            try { if(existing.Send("PING").StartsWith("OK ")) return existing; }
+            catch(Exception error) { LastError=error.Message; }
+            existing.Dispose(); return null;
+        }
         public static ClientAdapter TryConnect() {
-            var games=Process.GetProcessesByName("MapleStory");
+            var liveGames=new List<Process>();
+            foreach(var game in Process.GetProcessesByName("MapleStory")) {
+                try { if(!game.HasExited) liveGames.Add(game); else game.Dispose(); }
+                catch(InvalidOperationException) { game.Dispose(); }
+            }
+            var games=liveGames.ToArray();
             if(games.Length!=1) { LastError="Expected one MapleStory process; found "+games.Length; return null; }
             var stream=new NamedPipeClientStream(".","SoloTrainerClient-"+games[0].Id,PipeDirection.InOut,PipeOptions.Asynchronous);
             try {
@@ -502,6 +513,20 @@ namespace SoloTrainer {
             refreshObservations.Click+=async delegate { await RefreshObservations(); }; tabs.TabPages.Add(observations);
             var about=new TabPage("NFO / queued"); about.BackColor=BackColor; about.ForeColor=neon;
             var notes=new Label(); notes.Dock=DockStyle.Fill; notes.Padding=new Padding(12); notes.Text="CLICK EACH SWITCH TO APPLY IMMEDIATELY.\r\n\r\nMob Vac: real monsters group ahead of your facing direction.\r\nItem/Meso Vac: eligible drops, full map or radius, auto/key sweep.\r\nFMA expands real close-range swings, including empty swings.\r\nMouse Fly uses the separate client adapter.\r\nNo automatic attack key input: your movement and attack key stay yours."; about.Controls.Add(notes); tabs.TabPages.Add(about); Controls.Add(tabs);
+#if CRITICAL_RELEASE
+            Text="[xX_SoloH4x_Xx] SoloTrainer v0.6 - Critical release";
+            // Owner narrowed this release to the original working powers and fixes.
+            // Keep initialized draft panels for reset compatibility, outside this UI.
+            for(int i=tabs.TabPages.Count-1;i>=0;--i) {
+                var page=tabs.TabPages[i];
+                if(page!=main&&page!=combat&&page!=mobs&&page!=movement&&page!=loot&&page!=survival&&page!=about)
+                    tabs.TabPages.Remove(page);
+            }
+            fallThrough.Visible=hover.Visible=applyFlyOptions.Visible=flyVertical.Visible=false;
+            flySpeed.Visible=flyDeadZone.Visible=flyInertia.Visible=flightSettings.Visible=false;
+            autoHp.Visible=autoMp.Visible=applyAutoPotion.Visible=false;
+            notes.Text="Original powers + critical fixes.\r\n\r\nINJECT HAX attaches to your existing client.\r\nMob Vac, Item/Meso pickup, close-range FMA and HP/MP controls.\r\nMouse Fly: toggle F6, hold ALT in the playfield to steer.\r\nRapid Attack removes local recovery; attack with your normal key.\r\nALL OFF restores native controls and clears server powers.";
+#endif
             Check(main,vac,"[01] MOB VAC   // group monsters in front",12,11);
             Check(main,fma,"[02] FULL MAP ATTACK   // real close-range swing, <=100 mobs",12,44);
             var inputNote=new Label(); inputNote.Text="Attack normally: empty swings now expand across the map."; inputNote.SetBounds(18,86,580,24); inputNote.ForeColor=Color.Cyan; main.Controls.Add(inputNote);
@@ -728,9 +753,20 @@ namespace SoloTrainer {
                 var active=await Task.Run(delegate { return candidate.Send("configure",new Dictionary<string,string>{{"vac","1"},{"vacMode","front"},{"itemVac","1"},{"mesoVac","1"},{"lootOnKey","0"},{"lootRadius","0"},{"lootBatch","8"},{"lootOrder","nearest"},{"includeIds",""},{"excludeIds",""},{"minMeso","0"},{"maxMeso",Int32.MaxValue.ToString()},{"fma","1"},{"fmaDamage","1"},{"fmaOneHit","0"},{"rapid","0"},{"hpGod","0"},{"hpRegen","0"},{"mpRegen","0"},{"interval","300"}}); });
                 if(requestEpoch!=epoch) { await Task.Run(delegate { try { candidate.Send("off",new Dictionary<string,string>()); } catch {} }); return; }
                 bridge=candidate; paired=true; lastLoggedFmaCast=0;
-                adapter=await Task.Run(delegate { return ClientAdapter.TryConnect(); });
+                var previousAdapter=adapter;
+                var connectedAdapter=await Task.Run(delegate { return ClientAdapter.Reuse(previousAdapter)??ClientAdapter.TryConnect(); });
+                if(closing||requestEpoch!=epoch) {
+                    if(connectedAdapter!=null) await Task.Run(delegate { connectedAdapter.Dispose(); });
+                    return;
+                }
+                adapter=connectedAdapter;
+                if(adapter!=previousAdapter) {
+                    syncing=true;
+                    fly.Checked=unlimited.Checked=skillEffects.Checked=fallThrough.Checked=hover.Checked=cpuMode.Checked=false;
+                    syncing=false;
+                }
                 UpdateState(active); SetControls(true);
-                Append("HAX active: mob vac, item/meso vac, real-swing FMA. Attack input stays yours. Panic: Ctrl+F12.");
+                Append("HAX active: mob vac, item/meso vac, real-swing FMA. Attack input stays yours. Panic: visible ALL OFF.");
                 Append(adapter==null ? "Client adapter unavailable; client controls remain off. "+ClientAdapter.LastError
                     : "Client adapter connected. Fly="+adapter.FlyReady+" Unlimited Attack="+adapter.UnlimitedReady+" Rapid Attack="+adapter.RapidReady);
             } catch(Exception e) { if(requestEpoch==epoch) { Append(e.ToString()); Disconnect(e.Message); } }
@@ -757,6 +793,15 @@ namespace SoloTrainer {
                 var b=bridge; var result=await Task.Run(delegate { return b.Send("status",new Dictionary<string,string>()); });
                 if(!closing&&requestEpoch==epoch) UpdateState(result);
                 var a=adapter;
+                if(a==null&&!closing&&requestEpoch==epoch) {
+                    var recovered=await Task.Run(delegate { return ClientAdapter.TryConnect(); });
+                    if(closing||requestEpoch!=epoch) {
+                        if(recovered!=null) await Task.Run(delegate { recovered.Dispose(); });
+                        return;
+                    }
+                    adapter=a=recovered;
+                    if(a!=null) { SetControls(paired); Append("Client adapter reconnected; native controls available."); }
+                }
                 if(a!=null&&requestEpoch==epoch) {
                     try {
                         if(a.HoverReady&&lastNativeMap!=null&&lastNativeMap!=result["map"]) {
@@ -767,8 +812,18 @@ namespace SoloTrainer {
                         string ping=await Task.Run(delegate { return a.Send("PING"); });
                         if(!ping.StartsWith("OK ")) throw new IOException("Client adapter heartbeat invalid: "+ping);
                         if(a.MovementReset&&requestEpoch==epoch) {
-                            a.MovementReset=false; syncing=true; fly.Checked=hover.Checked=fallThrough.Checked=false; syncing=false;
-                            Append("Map transition cleared native movement. Trainer remains attached.");
+                            a.MovementReset=false;
+                            bool restoreFly=fly.Checked&&a.FlyConfigReady&&!flyBusy;
+                            syncing=true; hover.Checked=fallThrough.Checked=false; if(!restoreFly) fly.Checked=false; syncing=false;
+                            if(restoreFly) {
+                                string options=FlyOptionsCommand();
+                                string configured=await Task.Run(delegate { return a.Send(options); });
+                                if(configured!="OK FLYOPT") throw new IOException(configured);
+                                if(closing||requestEpoch!=epoch||adapter!=a||!fly.Checked||flyBusy) return;
+                                string restored=await Task.Run(delegate { return a.Send("FLY 1"); });
+                                if(restored!="OK FLY=1") throw new IOException(restored);
+                                Append("Map transition reset movement; Mouse Fly restored. Hold ALT to steer.");
+                            } else Append("Map transition cleared native movement. Trainer remains attached.");
                         }
                     } catch(Exception clientError) {
                         if(requestEpoch==epoch&&adapter==a) {

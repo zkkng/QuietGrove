@@ -1,6 +1,14 @@
 # Client diagnostics
 
-## Current v4: native error propagation, installed September30 at22:27:59PDT
+## Current v6: first C++ startup error, October 1
+
+Installed SHA256 `AB783D8BC585DD606A33A9F8CD9F69E78EF8896249CA1B3C201D99AED97EC393`. The original fly/rapid/attachment repairs remain in native DLL D32E9A12 and EXE01689D86. Current release evidence is in `docs/trainer-critical-release-2026-10-01.md`.
+
+The new pre-login failure at02:48 recorded two C++ throws but had no retained HRESULT/type/context. V6 retains the FIRST general C++ throw as kind14 in the existing bounded breadcrumb ring and requests one local dump under the existing two-dump ceiling. It reads no unknown exception-object contents and never suppresses exception dispatch. A handled C++ snapshot is not evidence of an unhandled crash. Actual handled-C++ testing preserves the thrown DWORD and captures the exact test HRESULT80004005 in the local dump; existing loopback/lifecycle/fault-saturation checks still pass.
+
+One controlled startup at02:58, after GM's stable server release, reaches the actual login screen with no recorded exception. The earlier failure's cause remains unconfirmed. No authentication was automated or required for implementation signoff. A session with `os_hooks=0` has unavailable socket counters; zeros do not establish zero traffic.
+
+## Historical v4: native error propagation, installed September30 at22:27:59PDT
 
 Real v3 trace identified cleanup on the main thread, then update of the disposed pools. Both recent dumps contain pending native error5; the installed v5 loop incorrectly ignores all positive ZException codes. V4 verifies original proxy SHA A4DF286A... and exact instruction bytes, then applies one byte at loaded RVA C0D2 (JNS toJZ) with scoped thread suspension/protection restoration/cache flush. Disk proxy stays unchanged. It also captures the exact native ZException5 first throw before cleanup. This can prevent the secondary access violation while the original error/disconnect cause remains unresolved. Require startup `native_error_fix ACTIVE`; gameplay acceptance remains pending.
 
