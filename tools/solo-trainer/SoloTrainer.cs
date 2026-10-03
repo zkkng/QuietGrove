@@ -70,6 +70,12 @@ namespace SoloTrainer {
         public int GameProcessId;
         private string resetGeneration;
         private ClientAdapter(NamedPipeClientStream stream,int gameProcessId) { pipe=stream; GameProcessId=gameProcessId; }
+        public static ClientAdapter Reuse(ClientAdapter existing) {
+            if(existing==null) return null;
+            try { if(existing.Send("PING").StartsWith("OK ")) return existing; }
+            catch(Exception error) { LastError=error.Message; }
+            existing.Dispose(); return null;
+        }
         public static ClientAdapter TryConnect() {
             var liveGames=new List<Process>();
             foreach(var game in Process.GetProcessesByName("MapleStory")) {
@@ -747,9 +753,20 @@ namespace SoloTrainer {
                 var active=await Task.Run(delegate { return candidate.Send("configure",new Dictionary<string,string>{{"vac","1"},{"vacMode","front"},{"itemVac","1"},{"mesoVac","1"},{"lootOnKey","0"},{"lootRadius","0"},{"lootBatch","8"},{"lootOrder","nearest"},{"includeIds",""},{"excludeIds",""},{"minMeso","0"},{"maxMeso",Int32.MaxValue.ToString()},{"fma","1"},{"fmaDamage","1"},{"fmaOneHit","0"},{"rapid","0"},{"hpGod","0"},{"hpRegen","0"},{"mpRegen","0"},{"interval","300"}}); });
                 if(requestEpoch!=epoch) { await Task.Run(delegate { try { candidate.Send("off",new Dictionary<string,string>()); } catch {} }); return; }
                 bridge=candidate; paired=true; lastLoggedFmaCast=0;
-                adapter=await Task.Run(delegate { return ClientAdapter.TryConnect(); });
+                var previousAdapter=adapter;
+                var connectedAdapter=await Task.Run(delegate { return ClientAdapter.Reuse(previousAdapter)??ClientAdapter.TryConnect(); });
+                if(closing||requestEpoch!=epoch) {
+                    if(connectedAdapter!=null) await Task.Run(delegate { connectedAdapter.Dispose(); });
+                    return;
+                }
+                adapter=connectedAdapter;
+                if(adapter!=previousAdapter) {
+                    syncing=true;
+                    fly.Checked=unlimited.Checked=skillEffects.Checked=fallThrough.Checked=hover.Checked=cpuMode.Checked=false;
+                    syncing=false;
+                }
                 UpdateState(active); SetControls(true);
-                Append("HAX active: mob vac, item/meso vac, real-swing FMA. Attack input stays yours. Panic: Ctrl+F12.");
+                Append("HAX active: mob vac, item/meso vac, real-swing FMA. Attack input stays yours. Panic: visible ALL OFF.");
                 Append(adapter==null ? "Client adapter unavailable; client controls remain off. "+ClientAdapter.LastError
                     : "Client adapter connected. Fly="+adapter.FlyReady+" Unlimited Attack="+adapter.UnlimitedReady+" Rapid Attack="+adapter.RapidReady);
             } catch(Exception e) { if(requestEpoch==epoch) { Append(e.ToString()); Disconnect(e.Message); } }
@@ -776,6 +793,15 @@ namespace SoloTrainer {
                 var b=bridge; var result=await Task.Run(delegate { return b.Send("status",new Dictionary<string,string>()); });
                 if(!closing&&requestEpoch==epoch) UpdateState(result);
                 var a=adapter;
+                if(a==null&&!closing&&requestEpoch==epoch) {
+                    var recovered=await Task.Run(delegate { return ClientAdapter.TryConnect(); });
+                    if(closing||requestEpoch!=epoch) {
+                        if(recovered!=null) await Task.Run(delegate { recovered.Dispose(); });
+                        return;
+                    }
+                    adapter=a=recovered;
+                    if(a!=null) { SetControls(paired); Append("Client adapter reconnected; native controls available."); }
+                }
                 if(a!=null&&requestEpoch==epoch) {
                     try {
                         if(a.HoverReady&&lastNativeMap!=null&&lastNativeMap!=result["map"]) {
@@ -786,8 +812,18 @@ namespace SoloTrainer {
                         string ping=await Task.Run(delegate { return a.Send("PING"); });
                         if(!ping.StartsWith("OK ")) throw new IOException("Client adapter heartbeat invalid: "+ping);
                         if(a.MovementReset&&requestEpoch==epoch) {
-                            a.MovementReset=false; syncing=true; fly.Checked=hover.Checked=fallThrough.Checked=false; syncing=false;
-                            Append("Map transition cleared native movement. Trainer remains attached.");
+                            a.MovementReset=false;
+                            bool restoreFly=fly.Checked&&a.FlyConfigReady&&!flyBusy;
+                            syncing=true; hover.Checked=fallThrough.Checked=false; if(!restoreFly) fly.Checked=false; syncing=false;
+                            if(restoreFly) {
+                                string options=FlyOptionsCommand();
+                                string configured=await Task.Run(delegate { return a.Send(options); });
+                                if(configured!="OK FLYOPT") throw new IOException(configured);
+                                if(closing||requestEpoch!=epoch||adapter!=a||!fly.Checked||flyBusy) return;
+                                string restored=await Task.Run(delegate { return a.Send("FLY 1"); });
+                                if(restored!="OK FLY=1") throw new IOException(restored);
+                                Append("Map transition reset movement; Mouse Fly restored. Hold ALT to steer.");
+                            } else Append("Map transition cleared native movement. Trainer remains attached.");
                         }
                     } catch(Exception clientError) {
                         if(requestEpoch==epoch&&adapter==a) {
