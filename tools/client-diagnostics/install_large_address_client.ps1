@@ -31,16 +31,25 @@ $preserved=@{}
 foreach($name in @('dinput8.dll','SoloClientDiagnostics.dll','config.ini','Launch SoloMapling.cmd')){
     $preserved[$name]=(Get-FileHash -LiteralPath (Join-Path $GameDirectory $name)).Hash
 }
+$rollbackPath=Join-Path $GameDirectory ('MapleStory.pre-large-address-'+$stamp+'.exe')
+$renamed=$false
 try {
+    # Windows can retain an exited image lock. A same-directory rename preserves
+    # the original while creating the replacement under the playable filename.
+    Move-Item -LiteralPath $clientPath -Destination $rollbackPath
+    $renamed=$true
     Copy-Item -LiteralPath $candidate -Destination $clientPath -Force
     if((Get-FileHash -LiteralPath $clientPath).Hash -ne $patchedHash){throw 'Installed hash verification failed'}
     foreach($name in $preserved.Keys){
         if((Get-FileHash -LiteralPath (Join-Path $GameDirectory $name)).Hash -ne $preserved[$name]){throw ('Preserved file changed: '+$name)}
     }
 } catch {
-    Copy-Item -LiteralPath $backup -Destination $clientPath -Force
+    if($renamed) {
+        if(Test-Path -LiteralPath $clientPath){Move-Item -LiteralPath $clientPath -Destination (Join-Path $receiptDirectory 'failed-install.exe')}
+        Move-Item -LiteralPath $rollbackPath -Destination $clientPath
+    }
     throw
 }
-[ordered]@{installedUtc=[DateTime]::UtcNow.ToString('o');client=$clientPath;originalSha256=$originalHash;installedSha256=$patchedHash;backup=$backup;changedBytes=1;preserved=$preserved;startupVerified=$false;gameplayVerified=$false} |
+[ordered]@{installedUtc=[DateTime]::UtcNow.ToString('o');client=$clientPath;originalSha256=$originalHash;installedSha256=$patchedHash;backup=$backup;rollbackImage=$rollbackPath;changedBytes=1;preserved=$preserved;startupVerified=$false;gameplayVerified=$false} |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $receiptDirectory 'receipt.json')
 Write-Output $receiptDirectory
