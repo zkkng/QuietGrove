@@ -16,4 +16,14 @@ The existing playable EXE is PE32/x86, SHA256 `ED5A699407B9705528B6A653CDEE7395E
 
 `install_large_address_client.ps1` requires a closed game and 64-bit Windows, verifies both identities, backs up the original EXE, checks every changed byte, installs the candidate and preserves DLLs/config/launcher. It records a local receipt and rolls back on installation failure. No native code, trainer hooks, game assets or server changes are included.
 
-Preparation and static validation have passed. Installation, startup and additional address-range verification are separate steps. Sustained gameplay stability remains unverified until played.
+## Installed and verified
+
+Installed at 2026-10-03 09:58:16 UTC. The first overwrite attempt encountered a Windows retained image lock without changing the original. The committed installer now uses a same-directory rename, then creates the replacement under the original playable filename. Original image rollback: `C:/Users/Lupert/Games/SoloMapling-v83/MapleStory.pre-large-address-20261003T095816Z.exe`. A second verified backup and local receipt are in `tools/client-diagnostics/build/large-address/installation-20261003T095816Z/`.
+
+Existing launcher, config.ini, dinput8.dll (D32E9A12...) and diagnostics DLL (AB783D8B...) hashes were preserved. The trainer EXE remains unchanged; the separately prepared Mouse Fly EXE is still blocked by Windows Application Control and is not installed.
+
+One controlled launch through `Launch SoloMapling.cmd` reached the actual login screen, PID2856, start09:58:45 UTC. Native Fly/Unlimited/Rapid hooks reported ready, and diagnostics fault/code files remained empty. No authentication or gameplay was automated.
+
+`capture_address_space.ps1` captured a read-only MiniDumpWithFullMemoryInfo snapshot, then `analyze_address_space.py` proved the process address range now spans exactly4GB. It had 1,633,198,080 free bytes and a largest contiguous free region of 1,144,410,112 bytes. This proves the flag is active in the running client rather than merely present in the file. The initial generic stack capture used ThreadInfo without FullMemoryInfo and could not establish this; the dedicated capture explicitly uses both flags.
+
+The client is left at login. Sustained gameplay stability and any continued resource growth remain unverified. No claim is made that every possible client crash is fixed.
